@@ -1,4 +1,4 @@
-﻿import re, requests, textwrap
+import re, requests, textwrap
 import streamlit as st
 
 st.set_page_config(page_title="GitHub GuideBot", layout="wide")
@@ -25,20 +25,39 @@ def summarize_tree(items, audience="Beginner"):
     if audience=="Beginner":
         txt.append("A repository is a project folder tracked by Git on GitHub.")
         txt.append(f"It has {len(files)} files across {len(dirs)} top-level folders.")
-        if "README.md" in files: txt.append("README.md explains the project and usage.")
+        if any(p.lower().startswith("readme") for p in files): txt.append("README.md explains the project and usage.")
     else:
         txt.append(f"{len(files)} files, {len(dirs)} top directories.")
     return "\n".join(txt), files, dirs
 
 def safe_allowlisted(path):
-    allow = (".md",".txt",".py",".ipynb",".toml",".cfg",".json",".yml",".yaml",".ini",".rst",".csv",".tsv",".env.example")
+    allow = (".md",".txt",".py",".ipynb",".toml",".cfg",".json",".yml",".yaml",".ini",".rst",".csv",".tsv",".env.example",".sh")
     deny  = (".env",".pem",".key",".pfx",".keystore")
     return path.endswith(allow) and not path.endswith(deny)
+
+PRIORITY_PREFIXES = (
+    "README", "readme", "LICENSE", "license",
+    "requirements", "pyproject.toml", "environment.yml",
+    "setup.", "Makefile"
+)
+
+def sort_priority(paths):
+    # Priority: root README/important files, then other root .md, then the rest
+    def rank(p):
+        root = ("/" not in p)
+        starts = any(p.startswith(pref) or p.lower().startswith(pref.lower()) for pref in PRIORITY_PREFIXES)
+        is_root_md = root and p.lower().endswith(".md")
+        return (
+            0 if (root and starts) else
+            1 if is_root_md else
+            2
+        )
+    return sorted(paths, key=rank)
 
 def fetch_small_text(owner, repo, path, ref):
     raw = f"https://raw.githubusercontent.com/{owner}/{repo}/{ref}/{path}"
     r = requests.get(raw, timeout=10)
-    if r.status_code==200 and len(r.text) < 80000:
+    if r.status_code==200 and len(r.text) < 80_000:
         return r.text
     return ""
 
@@ -54,25 +73,49 @@ if st.button("Analyze") and url:
         summary, files, dirs = summarize_tree(items, aud)
         st.subheader("Repo Overview"); st.write(summary)
         st.write({"default_branch": ref, "top_dirs": dirs[:10]})
-        sample = [p for p in files if safe_allowlisted(p)][:30]
-        corpus = {p: fetch_small_text(owner, repo, p, ref)[:5000] for p in sample}
-        corpus = {k:v for k,v in corpus.items() if v}
+
+        allow = [p for p in files if safe_allowlisted(p)]
+        prioritized = sort_priority(allow)
+        sample = prioritized[:60]  # bigger cap, still small
+
+        corpus = {}
+        for p in sample:
+            txt = fetch_small_text(owner, repo, p, ref)
+            if txt:
+                corpus[p] = txt[:5000]  # small slice
         st.session_state["corpus"] = corpus
-        st.success(f"Loaded {len(corpus)} text files for basic Q&A (demo).")
+
+        with st.expander(f"Indexed files ({len(corpus)})", expanded=False):
+            st.write(list(corpus.keys()))
+
+        if not corpus:
+            st.warning("No indexable files found (allowlist/size limits). Try another repo or view README online.")
+        else:
+            st.success(f"Loaded {len(corpus)} text files for basic Q&A (demo).")
+
+# --- Q&A (improved keyword ranker) ---
+STOP = set("""a an and are as at be by for from how in is it of on or that the this to what when where which who why will with""".split())
+
+def keywords(s: str):
+    return [w for w in re.findall(r"\w+", s.lower()) if w not in STOP and len(w)>2]
 
 if "corpus" in st.session_state:
     q = st.text_input("Ask a question about this repo")
     if st.button("Answer") and q:
+        qwords = keywords(q)
         hits = []
         for path, txt in st.session_state["corpus"].items():
-            score = sum(txt.lower().count(w) for w in set(re.findall(r"\w+", q.lower())))
-            if score: hits.append((score, path, txt[:800]))
+            body = txt.lower()
+            score = sum(body.count(w) for w in set(qwords))
+            # slight bonus if README answers
+            if path.lower().startswith("readme"): score += 2
+            if score: hits.append((score, path, txt[:1200]))
         hits.sort(reverse=True)
         if hits:
             score, path, snippet = hits[0]
             st.markdown("**Answer (demo):**")
-            st.write(textwrap.shorten(snippet, width=600, placeholder=" ..."))
-            st.caption(f"Source: {path}")
+            st.write(textwrap.shorten(snippet, width=800, placeholder=" ..."))
+            st.caption(f"Source: {path}  |  score={score}")
         else:
-            st.info("No matches. Try simpler terms or open README.md.")
+            st.info("No matches found in indexed files. Try simpler terms like 'install', 'requirements', or 'usage'.")
 st.divider(); st.caption("Security: session-only keys, public repos, allowlisted files, size caps, no code execution.")
