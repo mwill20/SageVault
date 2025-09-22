@@ -119,19 +119,20 @@ def penalize_suspicious(docs: List[Dict], text_key: str = "text") -> List[Dict]:
 
 
 def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) -> List[dict]:
-    """Ensure no more than max_per_key entries share the same value for key.
-
-    Maintains original order (stable) while skipping excess items.
+    """
+    Limit how many items share the same `key` value.
+    Preserves original order while enforcing the cap.
     """
     if not items:
         return []
-    counts: dict[str, int] = {}
+    seen: dict[object, int] = {}
     out: List[dict] = []
     for it in items:
         v = it.get(key)
-        counts[v] = counts.get(v, 0) + 1
-        if counts[v] <= max_per_key:
+        cnt = seen.get(v, 0)
+        if cnt < max_per_key:
             out.append(it)
+            seen[v] = cnt + 1
     return out
 
 
