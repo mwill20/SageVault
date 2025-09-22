@@ -33,7 +33,8 @@ def assemble_context(query: str,
                      episodic_hits: List[Dict[str, Any]],
                      window_turns: List[tuple],
                      summary_digest: str,
-                     cfg: Dict[str, Any]) -> str:
+                     cfg: Dict[str, Any],
+                     ledger: List[str] | None = None) -> str:
     max_tokens = cfg.get("policy", {}).get("max_ctx_tokens", 3000)
     parts: List[str] = []
     token_used = 0
@@ -56,7 +57,10 @@ def assemble_context(query: str,
     if not coverage:
         add(format_window(window_turns))
 
-    # 3) If still under budget & have summary (rare fallback), add digest
+    # 3) If still under budget & have ledger facts, add concise ledger first
+    if ledger:
+        add("Ledger:\n" + "\n".join(ledger[-8:]))
+    # 4) Then summary digest if still space
     if token_used < max_tokens * 0.6 and summary_digest:
         add(summary_digest[:1200])
 
@@ -68,4 +72,12 @@ def assemble_context(query: str,
         joined = joined[:char_cap].rsplit(" ", 1)[0] + " …"
     return joined
 
-__all__ = ["assemble_context", "format_hits", "format_window"]
+def update_ledger(ledger: List[str], question: str, answer: str) -> List[str]:
+    """Append a compact fact entry (redacted). Keep last 25."""
+    from .security_utils import redact_secrets
+    q = question.replace("\n", " ")[:120]
+    a = redact_secrets(answer.replace("\n", " ")[:160])
+    ledger.append(f"- Q: {q} | A: {a}")
+    return ledger[-25:]
+
+__all__ = ["assemble_context", "format_hits", "format_window", "update_ledger"]

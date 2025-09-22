@@ -4,8 +4,8 @@ import streamlit as st
 from rag_utils import build_store, retrieve
 from llm_utils import call_llm
 from prompts import SYSTEM_PROMPT
-from security_utils import sanitize_text, redact_secrets, label_dangerous_commands
-from memory_orchestrator import assemble_context
+from security_utils import sanitize_text, redact_secrets, label_dangerous_commands, penalize_suspicious
+from memory_orchestrator import assemble_context, update_ledger
 
 GH_HEADERS = {"User-Agent": "github-guidebot"}
 
@@ -307,7 +307,9 @@ if "collection" in st.session_state:
             st.info("Type a question first.")
         else:
             # fetch more candidates, then reorder to prioritize README/root files
-            candidates = retrieve(st.session_state["collection"], q, k=12)
+            candidates = retrieve(st.session_state["collection"], q, k=16)
+            # Apply injection + diversity filtering heuristics (mutates similarity)
+            candidates = penalize_suspicious(candidates, max_share=0.55)
 
             def _path_priority(h):
                 p = (h.get("path") or "").lower()
@@ -343,11 +345,12 @@ if "collection" in st.session_state:
                 st.info("No relevant chunks found. Try simpler terms like 'install', 'requirements', or 'usage'.")
 
     if hits:
-        # Build context using memory hierarchy (episodic only for now; window+summary placeholders)
+        # Build context using memory hierarchy (episodic + window + ledger + optional summary)
         history = st.session_state.get("history", [])  # list of (q,a)
         summary_digest = st.session_state.get("summary_digest", "")
+        ledger = st.session_state.get("ledger", [])
         cfg = {"policy": {"max_ctx_tokens": 3000}}
-        context = assemble_context(q, hits, history, summary_digest, cfg)
+        context = assemble_context(q, hits, history, summary_digest, cfg, ledger=ledger)
         if len(context) > MAX_CHUNK_CONTEXT:
             # final char safeguard
             context = context[:MAX_CHUNK_CONTEXT].rsplit(" ", 1)[0] + " …"
@@ -369,9 +372,15 @@ if "collection" in st.session_state:
             llm_answer = redact_secrets(llm_answer)
             llm_answer = label_dangerous_commands(llm_answer)
             st.markdown("**Answer (LLM):**")
-            st.write(llm_answer)
+            # Render WARN lines distinctly
+            for block in llm_answer.split("\n\n"):
+                if block.startswith("**WARN:**"):
+                    st.warning(block.replace("**WARN:**", "WARN:"))
+                else:
+                    st.write(block)
             # persist history for memory layering
             st.session_state.setdefault("history", []).append((q, llm_answer[:2000]))
+            st.session_state["ledger"] = update_ledger(st.session_state.get("ledger", []), q, llm_answer)
         else:
             fallback_reason = (
                 "no provider selected" if provider.lower() == "none" else
@@ -383,8 +392,13 @@ if "collection" in st.session_state:
             fallback_out = stitched or hits[0]["text"]
             fallback_out = redact_secrets(fallback_out)
             fallback_out = label_dangerous_commands(fallback_out)
-            st.write(fallback_out)
+            for block in fallback_out.split("\n\n"):
+                if block.startswith("**WARN:**"):
+                    st.warning(block.replace("**WARN:**", "WARN:"))
+                else:
+                    st.write(block)
             st.session_state.setdefault("history", []).append((q, fallback_out[:2000]))
+            st.session_state["ledger"] = update_ledger(st.session_state.get("ledger", []), q, fallback_out)
 
         # Citations with links + similarity
         st.caption("Sources:")
@@ -394,10 +408,11 @@ if "collection" in st.session_state:
         repo = meta.get("repo")
         for h in hits:
             file_path = h["path"]
+            badge = f"`{file_path}` · chunk {h['chunk']} · sim {h['similarity']}"
             if owner and repo:
                 gh_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{file_path}"
-                st.markdown(f"- [{file_path} (chunk {h['chunk']}, sim={h['similarity']})]({gh_url})")
+                st.markdown(f"- [{badge}]({gh_url})")
             else:
-                st.markdown(f"- {file_path} (chunk {h['chunk']}, sim={h['similarity']})")
+                st.markdown(f"- {badge}")
 else:
     st.info("Analyze a repo to build the index.")

@@ -19,6 +19,14 @@ _DANGEROUS = (
     "chmod 777",
 )
 
+# Injection heuristic patterns (case-insensitive)
+INJECTION_PATTERNS = [
+    r"ignore (previous|earlier) instructions",
+    r"reveal (your )?(system|hidden) prompt",
+    r"bypass (safety|guard|policy)",
+    r"disable (safety|filters)",
+]
+
 _DEF_MAX_LEN = 2000
 
 
@@ -77,10 +85,70 @@ def extract_dangerous(text: str) -> List[str]:
             found.append(d)
     return found
 
+def warn_dangerous(cmd: str) -> str:
+    """Backward-compatible helper: wraps a single command string and injects WARN if dangerous.
+    If multiple lines provided, scans all lines (delegates to label_dangerous_commands)."""
+    return label_dangerous_commands(cmd)
+
+
+def injection_score(text: str) -> float:
+    """Return a heuristic injection score in [0,1]."""
+    if not text:
+        return 0.0
+    t = text.lower()
+    hits = 0
+    for p in INJECTION_PATTERNS:
+        try:
+            if re.search(p, t):
+                hits += 1
+        except re.error:
+            continue
+    if hits == 0:
+        return 0.0
+    return min(1.0, hits / 3.0)
+
+
+def penalize_suspicious(hits: List[dict], max_share: float = 0.6) -> List[dict]:
+    """Down-weight suspicious hits (mutates 'similarity' or 'score') & enforce diversity.
+
+    Expects each hit to have keys: 'text', 'path', and either 'similarity' or 'score'.
+    Returns filtered list where no single file exceeds max_share of retained hits.
+    """
+    if not hits:
+        return hits
+    by_file = {}
+    for h in hits:
+        inj = injection_score(h.get("text", ""))
+        # Mutate similarity/score downwards if suspicious
+        key = "similarity" if "similarity" in h else ("score" if "score" in h else None)
+        if key:
+            orig = h.get(key, 0.0)
+            h[key] = orig * (1.0 - 0.5 * inj)
+        path = h.get("path", "")
+        by_file[path] = by_file.get(path, 0) + 1
+    total = max(1, len(hits))
+    filtered = [h for h in hits if (by_file.get(h.get("path", ""), 0) / total) <= max_share]
+    # If filtering removed everything (e.g., one file dominated), fall back to original hits
+    return filtered or hits
+
+
+# Token counting (rough, provider-agnostic placeholder)
+def count_tokens_rough(s: str) -> int:
+    return max(1, len(s) // 4) if s else 1
+
+
+def count_tokens_provider(messages: List[dict], provider: str = "openai:gpt-4o-mini") -> int:
+    return sum(count_tokens_rough(m.get("content", "")) for m in messages)
+
 __all__ = [
     "sanitize_text",
     "redact_secrets",
     "normalize_repo_path",
     "label_dangerous_commands",
     "extract_dangerous",
+    "warn_dangerous",
+    "injection_score",
+    "penalize_suspicious",
+    "count_tokens_rough",
+    "count_tokens_provider",
 ]
