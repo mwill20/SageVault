@@ -6,7 +6,7 @@ classifiers can be added later.
 """
 from __future__ import annotations
 import re, html, posixpath
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Tuple, Any, Dict
 
 # Basic regex patterns (extend as needed)
 _CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
@@ -19,15 +19,18 @@ _DANGEROUS = (
     "chmod 777",
 )
 
-# Injection heuristic patterns (case-insensitive). Expanded for stronger coverage.
+# (expanded injection patterns below)
+# Injection heuristic patterns compiled case-insensitive for performance & resilience.
 INJECTION_PATTERNS = [
-    r"\bignore (all|any|previous) (instructions|context)\b",
-    r"\bas\s+system\b",
-    r"\bescalate privileges\b",
-    r"\brm\s+-rf\s+/\b",
-    r"\bcurl\s+.+\|\s*sh\b",
-    r"\bdisable\b.+\bsafety\b",
+    r"ignore\s+(all|any|previous)\s+(instructions|context)",
+    r"reveal\s+system\s+prompt",
+    r"\bas\s*system\b",
+    r"escalate\s+privileges",
+    r"\brm\s+-rf\s+/",
+    r"curl\s+[^|]+\|\s*sh",
+    r"disable\s+\w*\s*safety",
 ]
+INJECTION_REGEXES = [re.compile(p, re.I) for p in INJECTION_PATTERNS]
 
 _DEF_MAX_LEN = 2000
 
@@ -94,28 +97,33 @@ def warn_dangerous(cmd: str) -> str:
 
 
 def injection_score(text: str) -> int:
-    """Returns the number of matched injection patterns (integer).
-
-    Tests expect >=1 for basic attacks; counting matches is deterministic.
-    """
+    """Return integer count of matched injection patterns (>=1 for obvious attacks)."""
     if not text:
         return 0
-    t = text.lower()
-    return sum(1 for pat in INJECTION_PATTERNS if re.search(pat, t))
+    return sum(1 for rx in INJECTION_REGEXES if rx.search(text))
 
 
-from typing import Dict
+def _extract_text(item: Any, text_key: str = "text") -> str:
+    if isinstance(item, dict):
+        return str(item.get(text_key, ""))
+    txt = getattr(item, "text", None)
+    if txt is not None:
+        return str(txt)
+    return str(item)
 
-def penalize_suspicious(docs: List[Dict], text_key: str = "text") -> List[Dict]:
+def penalize_suspicious(
+    docs: List[Any],
+    text_key: str = "text",
+    max_share: float | None = None,
+) -> List[Any]:
     """
-    Stable-sort docs by their injection score ascending, so safer docs come first.
-    Accepts `text_key` for the field that holds text.
+    Stable-sort docs by injection score ascending (safer first).
+    Accepts dicts or objects; understands `text_key` and `obj.text`.
+    `max_share` accepted for API compatibility (no-op in this minimal implementation).
     """
     if not docs:
         return []
-    def score(doc: Dict) -> int:
-        return injection_score(str(doc.get(text_key, "")))
-    return sorted(docs, key=score)
+    return sorted(docs, key=lambda d: injection_score(_extract_text(d, text_key)))
 
 
 def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) -> List[dict]:
