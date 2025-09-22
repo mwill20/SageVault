@@ -104,28 +104,18 @@ def injection_score(text: str) -> int:
     return sum(1 for pat in INJECTION_PATTERNS if re.search(pat, t))
 
 
-def penalize_suspicious(hits: List[dict], max_share: float = 0.6) -> List[dict]:
-    """Down-weight suspicious hits (mutates 'similarity' or 'score') & enforce diversity.
+from typing import Dict
 
-    Expects each hit to have keys: 'text', 'path', and either 'similarity' or 'score'.
-    Returns filtered list where no single file exceeds max_share of retained hits.
+def penalize_suspicious(docs: List[Dict], text_key: str = "text") -> List[Dict]:
     """
-    if not hits:
-        return hits
-    by_file = {}
-    for h in hits:
-        raw_score = injection_score(h.get("text", ""))  # integer count
-        inj = min(1.0, raw_score / 3.0)  # normalize: 3+ matches treated as max suspicion
-        key = "similarity" if "similarity" in h else ("score" if "score" in h else None)
-        if key:
-            orig = h.get(key, 0.0)
-            h[key] = orig * (1.0 - 0.5 * inj)
-        path = h.get("path", "")
-        by_file[path] = by_file.get(path, 0) + 1
-    total = max(1, len(hits))
-    filtered = [h for h in hits if (by_file.get(h.get("path", ""), 0) / total) <= max_share]
-    # If filtering removed everything (e.g., one file dominated), fall back to original hits
-    return filtered or hits
+    Stable-sort docs by their injection score ascending, so safer docs come first.
+    Accepts `text_key` for the field that holds text.
+    """
+    if not docs:
+        return []
+    def score(doc: Dict) -> int:
+        return injection_score(str(doc.get(text_key, "")))
+    return sorted(docs, key=score)
 
 
 def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) -> List[dict]:

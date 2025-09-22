@@ -335,7 +335,7 @@ if "collection" in st.session_state:
             # fetch more candidates, then reorder to prioritize README/root files
             candidates = retrieve(st.session_state["collection"], q, k=16)
             # Apply injection + diversity filtering heuristics (mutates similarity)
-            candidates = penalize_suspicious(candidates, max_share=0.55)
+            candidates = penalize_suspicious(candidates, text_key="text")
 
             def _path_priority(h):
                 p = (h.get("path") or "").lower()
