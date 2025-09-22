@@ -79,3 +79,17 @@ All notable changes to this project will be documented here. This project follow
 
 ---
 Guideline: For future phases, add sections using the same headings (Added / Changed / Fixed / Notes). Keep entries terse but specific.
+
+
+ ## [Unreleased]
++### Added
++- Injection heuristics tests (score + reordering).
++- Ledger cap test; diversity guard edge-case test.
++- GitHub Actions CI (pytest on push/PR).
+
++### Changed
++- UI: prepare WARN rendering via `st.warning()`; plan provenance badges.
+
++### Security
++- Documented allowlist/redaction, dangerous command labeling, provenance,
++  and hierarchical memory strategy in SECURITY.md and README.
