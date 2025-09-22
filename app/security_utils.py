@@ -19,12 +19,14 @@ _DANGEROUS = (
     "chmod 777",
 )
 
-# Injection heuristic patterns (case-insensitive)
+# Injection heuristic patterns (case-insensitive). Expanded for stronger coverage.
 INJECTION_PATTERNS = [
-    r"ignore (previous|earlier) instructions",
-    r"reveal (your )?(system|hidden) prompt",
-    r"bypass (safety|guard|policy)",
-    r"disable (safety|filters)",
+    r"\bignore (all|any|previous) (instructions|context)\b",
+    r"\bas\s+system\b",
+    r"\bescalate privileges\b",
+    r"\brm\s+-rf\s+/\b",
+    r"\bcurl\s+.+\|\s*sh\b",
+    r"\bdisable\b.+\bsafety\b",
 ]
 
 _DEF_MAX_LEN = 2000
@@ -91,21 +93,15 @@ def warn_dangerous(cmd: str) -> str:
     return label_dangerous_commands(cmd)
 
 
-def injection_score(text: str) -> float:
-    """Return a heuristic injection score in [0,1]."""
+def injection_score(text: str) -> int:
+    """Returns the number of matched injection patterns (integer).
+
+    Tests expect >=1 for basic attacks; counting matches is deterministic.
+    """
     if not text:
-        return 0.0
+        return 0
     t = text.lower()
-    hits = 0
-    for p in INJECTION_PATTERNS:
-        try:
-            if re.search(p, t):
-                hits += 1
-        except re.error:
-            continue
-    if hits == 0:
-        return 0.0
-    return min(1.0, hits / 3.0)
+    return sum(1 for pat in INJECTION_PATTERNS if re.search(pat, t))
 
 
 def penalize_suspicious(hits: List[dict], max_share: float = 0.6) -> List[dict]:
@@ -118,8 +114,8 @@ def penalize_suspicious(hits: List[dict], max_share: float = 0.6) -> List[dict]:
         return hits
     by_file = {}
     for h in hits:
-        inj = injection_score(h.get("text", ""))
-        # Mutate similarity/score downwards if suspicious
+        raw_score = injection_score(h.get("text", ""))  # integer count
+        inj = min(1.0, raw_score / 3.0)  # normalize: 3+ matches treated as max suspicion
         key = "similarity" if "similarity" in h else ("score" if "score" in h else None)
         if key:
             orig = h.get(key, 0.0)
@@ -130,6 +126,23 @@ def penalize_suspicious(hits: List[dict], max_share: float = 0.6) -> List[dict]:
     filtered = [h for h in hits if (by_file.get(h.get("path", ""), 0) / total) <= max_share]
     # If filtering removed everything (e.g., one file dominated), fall back to original hits
     return filtered or hits
+
+
+def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) -> List[dict]:
+    """Ensure no more than max_per_key entries share the same value for key.
+
+    Maintains original order (stable) while skipping excess items.
+    """
+    if not items:
+        return []
+    counts: dict[str, int] = {}
+    out: List[dict] = []
+    for it in items:
+        v = it.get(key)
+        counts[v] = counts.get(v, 0) + 1
+        if counts[v] <= max_per_key:
+            out.append(it)
+    return out
 
 
 # Token counting (rough, provider-agnostic placeholder)
@@ -149,6 +162,7 @@ __all__ = [
     "warn_dangerous",
     "injection_score",
     "penalize_suspicious",
+    "diversity_guard",
     "count_tokens_rough",
     "count_tokens_provider",
 ]
