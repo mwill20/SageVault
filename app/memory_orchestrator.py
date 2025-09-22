@@ -72,12 +72,17 @@ def assemble_context(query: str,
         joined = joined[:char_cap].rsplit(" ", 1)[0] + " …"
     return joined
 
-def update_ledger(ledger: List[str], question: str, answer: str) -> List[str]:
-    """Append a compact fact entry (redacted). Keep last 25."""
-    from .security_utils import redact_secrets
-    q = question.replace("\n", " ")[:120]
-    a = redact_secrets(answer.replace("\n", " ")[:160])
-    ledger.append(f"- Q: {q} | A: {a}")
-    return ledger[-25:]
+def update_ledger(state: dict, entry: dict, cap: int = 50) -> dict:
+    """
+    Append a new ledger entry and cap the ledger length to `cap`.
+    Keeps the most recent `cap` items.
+    Expects entry already redacted/sanitized upstream if needed.
+    """
+    ledger = state.get("ledger", [])
+    ledger.append(entry)
+    if cap is not None and cap > 0 and len(ledger) > cap:
+        ledger = ledger[-cap:]
+    state["ledger"] = ledger
+    return state
 
 __all__ = ["assemble_context", "format_hits", "format_window", "update_ledger"]

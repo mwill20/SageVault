@@ -32,6 +32,32 @@ SYNTH_JOINER = "\n---\n"      # separator between chunks in synthesized answer
 # --- page config ---
 st.set_page_config(page_title="GitHub GuideBot", layout="wide")
 
+
+# --- UI helpers (Phase 3 polish) ---
+def warn(msg: str):
+    """Standardized warning with icon (replaces inline **WARN:** markers)."""
+    st.warning(msg, icon="⚠️")
+
+
+def show_provenance(pth: str, start: int | None = None, end: int | None = None, score: float | None = None):
+    """Render a compact provenance badge for a cited chunk.
+
+    Parameters
+    ----------
+    pth : str
+        File path relative to repo root.
+    start, end : int | None
+        Optional (future) line range for the chunk.
+    score : float | None
+        Similarity score (0-1) from vector search after adjustments.
+    """
+    parts = [pth]
+    if start is not None and end is not None:
+        parts.append(f"lines {start}-{end}")
+    if score is not None:
+        parts.append(f"sim {score:.2f}")
+    st.caption(" • ".join(parts))
+
 # --- session state defaults for future LLM routing ---
 if "llm_provider" not in st.session_state:
     st.session_state.llm_provider = "none"
@@ -373,14 +399,20 @@ if "collection" in st.session_state:
             llm_answer = label_dangerous_commands(llm_answer)
             st.markdown("**Answer (LLM):**")
             # Render WARN lines distinctly
+            danger_flagged = False
             for block in llm_answer.split("\n\n"):
                 if block.startswith("**WARN:**"):
-                    st.warning(block.replace("**WARN:**", "WARN:"))
+                    if not danger_flagged:
+                        warn("Potentially dangerous command or prompt injection detected. Proceed carefully.")
+                        danger_flagged = True
                 else:
                     st.write(block)
             # persist history for memory layering
             st.session_state.setdefault("history", []).append((q, llm_answer[:2000]))
-            st.session_state["ledger"] = update_ledger(st.session_state.get("ledger", []), q, llm_answer)
+            # Prepare ledger entry (already redacted & labeled above)
+            ledger_entry = {"q": q[:140], "a": llm_answer[:220]}
+            updated = update_ledger(st.session_state, ledger_entry, cap=50)
+            st.session_state["ledger"] = updated.get("ledger", [])
         else:
             fallback_reason = (
                 "no provider selected" if provider.lower() == "none" else
@@ -392,13 +424,18 @@ if "collection" in st.session_state:
             fallback_out = stitched or hits[0]["text"]
             fallback_out = redact_secrets(fallback_out)
             fallback_out = label_dangerous_commands(fallback_out)
+            danger_flagged = False
             for block in fallback_out.split("\n\n"):
                 if block.startswith("**WARN:**"):
-                    st.warning(block.replace("**WARN:**", "WARN:"))
+                    if not danger_flagged:
+                        warn("Potentially dangerous command or prompt injection detected. Proceed carefully.")
+                        danger_flagged = True
                 else:
                     st.write(block)
             st.session_state.setdefault("history", []).append((q, fallback_out[:2000]))
-            st.session_state["ledger"] = update_ledger(st.session_state.get("ledger", []), q, fallback_out)
+            ledger_entry = {"q": q[:140], "a": fallback_out[:220]}
+            updated = update_ledger(st.session_state, ledger_entry, cap=50)
+            st.session_state["ledger"] = updated.get("ledger", [])
 
         # Citations with links + similarity
         st.caption("Sources:")
@@ -408,11 +445,12 @@ if "collection" in st.session_state:
         repo = meta.get("repo")
         for h in hits:
             file_path = h["path"]
-            badge = f"`{file_path}` · chunk {h['chunk']} · sim {h['similarity']}"
+            # Optional: direct link (kept minimal to match provenance badge)
             if owner and repo:
                 gh_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{file_path}"
-                st.markdown(f"- [{badge}]({gh_url})")
+                st.markdown(f"- [{file_path}]({gh_url})")
             else:
-                st.markdown(f"- {badge}")
+                st.markdown(f"- {file_path}")
+            show_provenance(file_path, score=h.get("similarity"))
 else:
     st.info("Analyze a repo to build the index.")
