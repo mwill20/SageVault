@@ -1,17 +1,24 @@
 # security_utils.py
 """Security & hygiene helpers (deterministic, outside model prompt).
 
-Functions here should be lightweight and safe to call inline. Heavy/ML
-classifiers can be added later.
+Functions here are lightweight and safe to call inline. Heavier ML
+classifiers can be added later behind the same interfaces.
 """
 from __future__ import annotations
-import re, html, posixpath
-from typing import Iterable, List, Tuple, Any, Dict
 
-# Basic regex patterns (extend as needed)
+import html
+import posixpath
+import re
+from typing import Any, Dict, List
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Basic regex/pattern hygiene
+# ──────────────────────────────────────────────────────────────────────────────
 _CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
 _MD_LINK = re.compile(r"\[([^\]]{1,80})\]\(([^)]+)\)")
-_SECRET = re.compile(r"(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|eyJhbGciOi|AIza[0-9A-Za-z_-]{35})")
+_SECRET = re.compile(
+    r"(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|eyJhbGciOi|AIza[0-9A-Za-z_-]{35})"
+)
 _DANGEROUS = (
     "git push --force",
     "rm -rf",
@@ -19,8 +26,7 @@ _DANGEROUS = (
     "chmod 777",
 )
 
-# (expanded injection patterns below)
-# Injection heuristic patterns compiled case-insensitive for performance & resilience.
+# Injection heuristic patterns (compiled case-insensitive)
 INJECTION_PATTERNS = [
     r"ignore\s+(all|any|previous)\s+(instructions|context)",
     r"reveal\s+system\s+prompt",
@@ -35,46 +41,44 @@ INJECTION_REGEXES = [re.compile(p, re.I) for p in INJECTION_PATTERNS]
 _DEF_MAX_LEN = 2000
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Sanitization & Redaction
+# ──────────────────────────────────────────────────────────────────────────────
 def sanitize_text(s: str | None, max_len: int = _DEF_MAX_LEN) -> str:
-    """Basic hygiene: strip control chars, neutralize markdown links, HTML-escape.
-    Not for semantic fidelity—just UI safety & cleanliness.
-    """
+    """Strip control chars, neutralize markdown links, HTML-escape (UI safety)."""
     if not s:
         return ""
     s = _CTRL.sub("", s)
-    # Convert [text](url) -> text (url) to avoid hidden targets
-    s = _MD_LINK.sub(r"\1 (\2)", s)
+    s = _MD_LINK.sub(r"\1 (\2)", s)  # [text](url) → text (url)
     return html.escape(s.strip())[:max_len]
 
 
 def redact_secrets(s: str | None) -> str:
+    """Replace common key/token patterns with [REDACTED]."""
     if not s:
         return ""
     return _SECRET.sub("[REDACTED]", s)
 
 
 def normalize_repo_path(p: str) -> str:
+    """Normalize and prevent path traversal; return '' if unsafe."""
     p = (p or "").replace("\\", "/")
-    # Anchor so normpath can't escape root, then strip leading slash we added
     safe = posixpath.normpath("/" + p).lstrip("/")
-    # Disallow parent traversal remnants
-    if safe.startswith(".."):
-        return ""
-    return safe
+    return "" if safe.startswith("..") else safe
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Dangerous command labeling (plain-text, simple heuristics)
+# ──────────────────────────────────────────────────────────────────────────────
 def label_dangerous_commands(text: str) -> str:
-    """Insert WARN: lines above dangerous commands inside a fenced block if missing.
-    Simple line-by-line scan; can be enhanced later with parsing.
-    """
+    """Insert WARN: lines above dangerous commands; avoids duplicates."""
     if not text:
         return ""
     lines = text.splitlines()
     out: List[str] = []
-    for i, line in enumerate(lines):
+    for line in lines:
         raw = line.strip()
         if any(d in raw for d in _DANGEROUS):
-            # Avoid duplicate warnings
             if not (out and out[-1].startswith("**WARN:**")):
                 out.append("**WARN:** High-risk command detected; consider safer alternative (e.g., --force-with-lease or backup first).")
         out.append(line)
@@ -82,20 +86,20 @@ def label_dangerous_commands(text: str) -> str:
 
 
 def extract_dangerous(text: str) -> List[str]:
-    found = []
+    """Return a list of dangerous substrings found."""
     if not text:
-        return found
-    for d in _DANGEROUS:
-        if d in text:
-            found.append(d)
-    return found
+        return []
+    return [d for d in _DANGEROUS if d in text]
+
 
 def warn_dangerous(cmd: str) -> str:
-    """Backward-compatible helper: wraps a single command string and injects WARN if dangerous.
-    If multiple lines provided, scans all lines (delegates to label_dangerous_commands)."""
+    """Backward-compatible wrapper for single/multi-line strings."""
     return label_dangerous_commands(cmd)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Injection heuristics
+# ──────────────────────────────────────────────────────────────────────────────
 def injection_score(text: str) -> int:
     """Return integer count of matched injection patterns (>=1 for obvious attacks)."""
     if not text:
@@ -104,36 +108,71 @@ def injection_score(text: str) -> int:
 
 
 def _extract_text(item: Any, text_key: str = "text") -> str:
+    """Get textual content from dicts/objects; fallback to str(item)."""
     if isinstance(item, dict):
         return str(item.get(text_key, ""))
     txt = getattr(item, "text", None)
-    if txt is not None:
-        return str(txt)
-    return str(item)
+    return str(txt) if txt is not None else str(item)
+
+
+def _extract_attr(item: Any, key: str, default: Any = None):
+    if isinstance(item, dict):
+        return item.get(key, default)
+    return getattr(item, key, default)
+
+
+def _coerce_hit(
+    item: Any,
+    text_key: str = "text",
+    path_key: str = "path",
+    similarity_key: str = "similarity",
+) -> Dict[str, Any]:
+    """Normalize an item (dict/object) → dict with text/path/similarity."""
+    text = _extract_attr(item, text_key, "")
+    path = _extract_attr(item, path_key, _extract_attr(item, "file", ""))
+    sim = _extract_attr(item, similarity_key, 1.0)
+    try:
+        sim = float(sim)
+    except Exception:
+        sim = 1.0
+    return {"text": str(text or ""), "path": str(path or ""), "similarity": float(sim)}
+
 
 def penalize_suspicious(
     docs: List[Any],
     text_key: str = "text",
     max_share: float | None = None,
-) -> List[Any]:
+) -> List[Dict[str, Any]]:
     """
-    Stable-sort docs by injection score ascending (safer first).
-    Accepts dicts or objects; understands `text_key` and `obj.text`.
-    `max_share` accepted for API compatibility (no-op in this minimal implementation).
+    Stable-sort by injection risk (safer first) AND reduce similarity for risky hits.
+    - Accepts dicts/objects; reads .text/.path/.similarity when present.
+    - Returns list of dicts: {"text","path","similarity"} for test compatibility.
+    - `max_share` accepted for API-compatibility (no-op in this minimal impl).
     """
     if not docs:
         return []
-    return sorted(docs, key=lambda d: injection_score(_extract_text(d, text_key)))
+    coerced = [_coerce_hit(d, text_key=text_key) for d in docs]
+
+    scored: List[Dict[str, Any]] = []
+    for h in coerced:
+        s = injection_score(h["text"])
+        penalty = 1.0 / (1.0 + s)  # s=0 → 1.0; s>=1 → <1.0
+        h2 = dict(h)
+        h2["similarity"] = float(h2["similarity"]) * penalty
+        h2["_inj_score"] = s  # for sorting only
+        scored.append(h2)
+
+    scored.sort(key=lambda x: x["_inj_score"])  # safer first
+    for h in scored:
+        h.pop("_inj_score", None)
+    return scored
 
 
 def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) -> List[dict]:
-    """
-    Limit how many items share the same `key` value.
-    Preserves original order while enforcing the cap.
-    """
+    """Limit how many items share the same `key` value; preserve order."""
     if not items:
         return []
-    seen: dict[object, int] = {}
+    seen: Dict[Any, int] = {}
     out: List[dict] = []
     for it in items:
         v = it.get(key)
@@ -144,13 +183,16 @@ def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) 
     return out
 
 
+# ──────────────────────────────────────────────────────────────────────────────
 # Token counting (rough, provider-agnostic placeholder)
+# ──────────────────────────────────────────────────────────────────────────────
 def count_tokens_rough(s: str) -> int:
     return max(1, len(s) // 4) if s else 1
 
 
 def count_tokens_provider(messages: List[dict], provider: str = "openai:gpt-4o-mini") -> int:
     return sum(count_tokens_rough(m.get("content", "")) for m in messages)
+
 
 __all__ = [
     "sanitize_text",
