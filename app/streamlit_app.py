@@ -3,6 +3,9 @@ import streamlit as st
 
 from rag_utils import build_store, retrieve
 from llm_utils import call_llm
+from prompts import SYSTEM_PROMPT
+from security_utils import sanitize_text, redact_secrets, label_dangerous_commands
+from memory_orchestrator import assemble_context
 
 GH_HEADERS = {"User-Agent": "github-guidebot"}
 
@@ -297,7 +300,8 @@ if analyze_clicked and url:
 # --- Semantic Q&A ---
 hits = None  # ensure defined for later checks
 if "collection" in st.session_state:
-    q = st.text_input("Ask a question about this repo")
+    q_raw = st.text_input("Ask a question about this repo")
+    q = sanitize_text(q_raw, max_len=500)
     if st.button("Answer"):
         if not q.strip():
             st.info("Type a question first.")
@@ -339,18 +343,14 @@ if "collection" in st.session_state:
                 st.info("No relevant chunks found. Try simpler terms like 'install', 'requirements', or 'usage'.")
 
     if hits:
-        # Build labeled context (README first), under a strict char budget
-        parts = []
-        for h in hits:
-            is_readme = h.get("path", "").lower().startswith("readme")
-            limit = README_PREVIEW_CHARS if is_readme else CHUNK_PREVIEW
-            txt = h["text"][:limit]
-            if len(txt) == limit:
-                txt = txt.rsplit(" ", 1)[0] + " …"
-            parts.append(f"File: {h['path']} (chunk {h['chunk']})\n{txt}")
-        context = "\n\n".join(parts)
+        # Build context using memory hierarchy (episodic only for now; window+summary placeholders)
+        history = st.session_state.get("history", [])  # list of (q,a)
+        summary_digest = st.session_state.get("summary_digest", "")
+        cfg = {"policy": {"max_ctx_tokens": 3000}}
+        context = assemble_context(q, hits, history, summary_digest, cfg)
         if len(context) > MAX_CHUNK_CONTEXT:
-            context = context[:MAX_CHUNK_CONTEXT].rsplit("\n", 1)[0] + "\n …"
+            # final char safeguard
+            context = context[:MAX_CHUNK_CONTEXT].rsplit(" ", 1)[0] + " …"
 
         provider = st.session_state.llm_provider
         api_key = st.session_state.api_key
@@ -366,8 +366,12 @@ if "collection" in st.session_state:
                     st.error(f"LLM call failed: {e}")
 
         if llm_answer:
+            llm_answer = redact_secrets(llm_answer)
+            llm_answer = label_dangerous_commands(llm_answer)
             st.markdown("**Answer (LLM):**")
             st.write(llm_answer)
+            # persist history for memory layering
+            st.session_state.setdefault("history", []).append((q, llm_answer[:2000]))
         else:
             fallback_reason = (
                 "no provider selected" if provider.lower() == "none" else
@@ -376,7 +380,11 @@ if "collection" in st.session_state:
             )
             stitched = synthesize_semantic_answer(hits)
             st.markdown(f"**Answer (semantic synthesis – {fallback_reason})**")
-            st.write(stitched or hits[0]["text"])  # stitched should usually exist
+            fallback_out = stitched or hits[0]["text"]
+            fallback_out = redact_secrets(fallback_out)
+            fallback_out = label_dangerous_commands(fallback_out)
+            st.write(fallback_out)
+            st.session_state.setdefault("history", []).append((q, fallback_out[:2000]))
 
         # Citations with links + similarity
         st.caption("Sources:")

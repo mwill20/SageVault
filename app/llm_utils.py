@@ -1,5 +1,6 @@
 # app/llm_utils.py
 import requests
+from .prompts import SYSTEM_PROMPT  # lean runtime system prompt
 
 def call_llm(provider: str, api_key: str, question: str, context: str) -> str:
     provider = (provider or "").strip().lower()
@@ -15,11 +16,8 @@ def call_llm(provider: str, api_key: str, question: str, context: str) -> str:
         return "Provider integration not implemented yet."
     return "No provider selected; showing semantic chunk only."
 
-SYSTEM = (
-    "You are a concise GitHub explainer. ONLY use information present in the provided CONTEXT. "
-    "Do NOT invent facts. If the answer cannot be determined from the context, respond: \"I don't know based on the provided context.\" "
-    "If the user requests a specific format (e.g., 'answer in 6 words'), follow it exactly."
-)
+# Backward compatibility alias if any older code refers to SYSTEM
+SYSTEM = SYSTEM_PROMPT
 
 def _raise_for_bad_response(r: requests.Response, key_path: str):
     try:
@@ -71,7 +69,7 @@ def _groq_call(api_key, question, context):
     payload = {
         "model": model,
         "messages": [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg}
         ],
         "temperature": 0.2,
@@ -98,7 +96,7 @@ def _openai_call(api_key, question, context):
     payload = {
         "model": "gpt-4o-mini",
         "messages": [
-            {"role": "system", "content": SYSTEM},
+            {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_msg}
         ],
         "temperature": 0.2,
@@ -110,7 +108,7 @@ def _gemini_call(api_key, question, context):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     user_msg = (
-        f"{SYSTEM}\n\nCONTEXT:\n{context}\n\nINSTRUCTIONS:\n{question}\n\nRULES:\n"
+    f"{SYSTEM_PROMPT}\n\nCONTEXT:\n{context}\n\nINSTRUCTIONS:\n{question}\n\nRULES:\n"
         "- Answer ONLY from CONTEXT.\n"
         "- If unsure, say: I don't know based on the provided context.\n"
         "- If given a word-count instruction, match it exactly."
@@ -132,7 +130,7 @@ def _claude_call(api_key, question, context):
     payload = {
         "model": "claude-3-haiku-20240307",
         "max_tokens": 500,
-        "system": SYSTEM,
+    "system": SYSTEM_PROMPT,
         "messages": [{"role": "user", "content": user_msg}],
     }
     r = requests.post(url, headers=headers, json=payload, timeout=60)

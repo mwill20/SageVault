@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented here. This project follows a simple Phase-based log (earliest at top). Use semantic commit messages for future entries if possible.
 
+## Unreleased
+### Added
+- Lean runtime `SYSTEM_PROMPT` extracted to `prompts.py` to preserve token budget.
+- `security_utils.py` for deterministic sanitation, secret redaction, dangerous command labeling.
+- `memory_orchestrator.py` implementing hierarchical context assembly (episodic → window → summary scaffold).
+- `security_config.yaml` baseline configuration (allowlist domains, resource limits, destructive guard list).
+
+### Changed
+- `llm_utils.py` now imports prompt instead of embedding large system block; retains alias `SYSTEM`.
+- `streamlit_app.py` integrates input sanitation, answer post-filter (secret redaction & WARN labeling), and session history persistence.
+
+### Security / Reliability
+- Moved enforceable safety behaviors from prompt into code for deterministic control.
+- Dangerous command detection (git push --force, rm -rf, curl | bash, chmod 777) with WARN injection.
+- Secret pattern redaction (GitHub PAT, OpenAI-like keys, AWS keys, JWT, Google API keys).
+
+### Notes
+- Summary digest & decisions ledger placeholders exist; future work can populate & rotate them.
+- Retrieval scoring not yet adjusted for injection heuristics (planned enhancement).
+
+
 ## Phase 1 (Initial RAG + UI Foundation)
 ### Added
 - Basic Streamlit interface: repo URL input, audience selector, Analyze & Q&A buttons.
