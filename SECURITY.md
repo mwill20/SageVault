@@ -26,3 +26,16 @@
 ## Reporting Vulnerabilities
 Please open a GitHub issue with clear reproduction steps. Do **not** include sensitive keys or private data.  
 Coordinated disclosure is appreciated.
+
+## Planner Hardening
+All planner steps are scored by `penalize_suspicious()` and surfaced via `warn()`.  
+Heuristics flag dangerous shells (e.g., `curl … | sh`, `rm -rf`). Commands may be **blocked** or **downgraded**.  
+**Caveat:** Heuristics are best-effort; users must review commands before execution. No secrets are logged; API keys stay in session memory only.
+
+### Coach Mode & Repo Tour
+Coach Mode and the Repo Tour produce **suggested** steps and orientation blurbs derived from static repository files (README, dependency manifests, entrypoints). They:
+- Never execute commands automatically.
+- Sanitize and redact content before display.
+- Surface suspicious patterns instead of hiding them.
+
+Users are responsible for validating commands, especially in production or privileged shells. Treat suggestions as starting points, not guaranteed-safe prescriptions.

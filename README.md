@@ -87,3 +87,33 @@ Pull requests are welcome. Please ensure all tests pass and that any new feature
 
 License
 MIT
+
+## Coach Mode (Guided Walkthrough)
+
+Coach Mode generates a structured, citation-backed onboarding plan for a **local clone** of a repository. It never executes commands – it only surfaces them with provenance so you can copy/paste intentionally.
+
+Highlights:
+- Step list with: Title • Why it matters • (Optional) command • Citations (e.g. `README`, `requirements.txt`)
+- Risk & injection indicators: suspicious command patterns (curl|bash piping, destructive ops) are flagged with a ⚠️ badge.
+- Optional Colab bootstrap step when the repo looks like Python and has a small dependency surface (≤3 packages).
+- Verify step always appended – prompts you to run tests / smoke the app before moving on.
+
+Safety Posture:
+- No shell execution or file writes are performed automatically.
+- Commands are derived heuristically from repo signals (README text, dependency files, entrypoint scripts) and sanitized.
+- Potentially dangerous substrings (e.g. `rm -rf`, `:(){:|:&};:`) are surfaced instead of hidden.
+
+Usage:
+1. Open the sidebar → Coach Mode section.
+2. Provide local repo root path (where you cloned the repo).
+3. Click Generate Walkthrough.
+4. Review each step, copy commands manually, run locally, then proceed to Verify.
+5. Re‑generate after pulling upstream changes to refresh signals.
+
+## Planner & Tour Safety Notes
+
+The walkthrough planner and repo tour are **heuristic explainers** – they infer intent from static files. They may miss custom setup scripts or edge cases. Always review generated commands before running, especially in privileged environments. The system does not fetch or execute arbitrary network content beyond the public GitHub files you load.
+
+### Coach Mode
+Generates a step-by-step walkthrough for this repo with **copyable commands**, **citation chips** (e.g., `README`, `requirements.txt`), and **safety warnings** for risky patterns.  
+**How to use:** Enter repo root → **Generate Walkthrough** → follow numbered steps → run **Verify**. Optional **Colab** appears when Python deps are small (≤3). Planner output is passed through the security layer and redacted when needed.
