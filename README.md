@@ -1,3 +1,15 @@
+---
+title: GitHub GuideBot
+emoji: 🎯
+colorFrom: indigo
+colorTo: gray
+sdk: streamlit
+app_file: app/streamlit_app.py
+pinned: false
+license: mit
+short_description: Learn GitHub by doing – explore repos with a secure guided AI tutor.
+---
+
 # GitHub GuideBot
 
 “Learn GitHub by doing” — explore, understand, and reproduce repos step-by-step with an LLM tutor.
@@ -134,3 +146,30 @@ Navigation uses Prev/Next buttons with session-based index (`tour_ix`). The inde
 ### Coach Mode
 Generates a step-by-step walkthrough for this repo with **copyable commands**, **citation chips** (e.g., `README`, `requirements.txt`), and **safety warnings** for risky patterns.  
 **How to use:** Enter repo root → **Generate Walkthrough** → follow numbered steps → run **Verify**. Optional **Colab** appears when Python deps are small (≤3). Planner output is passed through the security layer and redacted when needed.
+
+## Deploy
+
+Local run (development):
+```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .\.venv\Scripts\activate
+pip install -r requirements.txt
+streamlit run app/streamlit_app.py
+```
+
+Deterministic demo mode:
+```bash
+DEMO_MODE=1 streamlit run app/streamlit_app.py
+```
+Locks the repo input to this project so retrieval & answers are stable.
+
+Hugging Face Spaces:
+- The YAML front matter (top of this README) configures the Space.
+- Optionally set a Space secret for any LLM API key; without one the app falls back to semantic-only answers.
+
+Smoke check (used for CI/Spaces build logs):
+```bash
+python scripts/smoke_demo.py
+# Outputs: SMOKE_OK <nsteps>
+```
+This validates the planner returns a final `verify` step.

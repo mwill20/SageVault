@@ -1,4 +1,4 @@
-import re, requests, textwrap, hashlib, time
+import re, requests, textwrap, hashlib, time, os
 import streamlit as st
 
 from .rag_utils import build_store, retrieve
@@ -67,14 +67,23 @@ if "llm_provider" not in st.session_state:
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 
+DEMO_MODE = os.environ.get("DEMO_MODE", "0") in ("1", "true", "TRUE")
+
 st.title("GitHub GuideBot")
-st.caption("Learn GitHub by doing — paste a public repo and explore.")
+if DEMO_MODE:
+    st.caption("Public demo mode — repository input locked for deterministic showcase.")
+else:
+    st.caption("Learn GitHub by doing — paste a public repo and explore.")
 
 # Sidebar entrypoint for Coach Mode (walkthrough) toggle
 with st.sidebar:
     st.markdown("---")
     st.subheader("Coach Mode")
-    repo_root_coach = st.text_input("Repo root (Coach)", value=st.session_state.get("coach_repo_root", "."), key="coach_repo_root")
+    coach_placeholder = st.session_state.get("coach_repo_root", ".")
+    if DEMO_MODE:
+        repo_root_coach = st.text_input("Repo root (Coach)", value=".", disabled=True, key="coach_repo_root")
+    else:
+        repo_root_coach = st.text_input("Repo root (Coach)", value=coach_placeholder, key="coach_repo_root")
     coach_trigger = st.button("Generate Walkthrough", key="coach_generate")
     if coach_trigger:
         st.session_state["coach_triggered"] = True
@@ -89,12 +98,24 @@ if st.session_state.get("coach_triggered"):
     st.stop()
 
 # Shorter inputs (layout no longer constrained by columns)
-repo_url = st.text_input(
-    "Public GitHub repo URL",
-    placeholder="https://github.com/owner/repo",
-    key="repo_url",
-    help="Public repos only. Long URLs scroll inside this box."
-)
+if DEMO_MODE:
+    # Lock to this project repo (safe, deterministic). Adjust if fork name differs.
+    locked_repo = "https://github.com/mwill20/github-guidebot"
+    st.text_input(
+        "Public GitHub repo URL (locked in demo)",
+        value=locked_repo,
+        disabled=True,
+        key="repo_url",
+        help="Input disabled in demo mode to keep retrieval deterministic."
+    )
+    repo_url = locked_repo
+else:
+    repo_url = st.text_input(
+        "Public GitHub repo URL",
+        placeholder="https://github.com/owner/repo",
+        key="repo_url",
+        help="Public repos only. Long URLs scroll inside this box."
+    )
 
 audience = st.selectbox(
     "Audience",
@@ -268,6 +289,9 @@ with st.expander("What is a GitHub repository?", expanded=True if not url else F
     st.write("We’ll fetch a public repo, map its structure, and explain how to run it.")
 
 if analyze_clicked and url:
+    if DEMO_MODE and url != "https://github.com/mwill20/github-guidebot":
+        st.warning("Demo mode restricts analysis to the locked GuideBot repository.")
+    
     owner, repo = parse_repo(url)
     if not owner:
         st.error("Enter a valid URL like https://github.com/owner/repo")
