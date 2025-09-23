@@ -17,7 +17,7 @@ from typing import Any, Dict, List
 _CTRL = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F]")
 _MD_LINK = re.compile(r"\[([^\]]{1,80})\]\(([^)]+)\)")
 _SECRET = re.compile(
-    r"(?:sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|eyJhbGciOi|AIza[0-9A-Za-z_-]{35})"
+    r"(?:sk-[A-Za-z0-9]{4,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}|eyJhbGciOi|AIza[0-9A-Za-z_-]{35})"
 )
 _DANGEROUS = (
     "git push --force",
