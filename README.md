@@ -114,6 +114,14 @@ Usage:
 
 The walkthrough planner and repo tour are **heuristic explainers** – they infer intent from static files. They may miss custom setup scripts or edge cases. Always review generated commands before running, especially in privileged environments. The system does not fetch or execute arbitrary network content beyond the public GitHub files you load.
 
+## Repo Tour
+A lightweight, three-stop orientation component rendered after generating a walkthrough:
+- Stop 1: README — purpose & high-level intent
+- Stop 2: Dependencies — what runtimes or packages you need
+- Stop 3: Entrypoint — how to actually run / launch the project
+
+Navigation uses Prev/Next buttons with session-based index (`tour_ix`). The index resets automatically when you change the repo root. All blurbs are sanitized and never execute code.
+
 ### Coach Mode
 Generates a step-by-step walkthrough for this repo with **copyable commands**, **citation chips** (e.g., `README`, `requirements.txt`), and **safety warnings** for risky patterns.  
 **How to use:** Enter repo root → **Generate Walkthrough** → follow numbered steps → run **Verify**. Optional **Colab** appears when Python deps are small (≤3). Planner output is passed through the security layer and redacted when needed.
