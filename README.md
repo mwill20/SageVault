@@ -102,6 +102,7 @@ Safety Posture:
 - No shell execution or file writes are performed automatically.
 - Commands are derived heuristically from repo signals (README text, dependency files, entrypoint scripts) and sanitized.
 - Potentially dangerous substrings (e.g. `rm -rf`, `:(){:|:&};:`) are surfaced instead of hidden.
+- All commands displayed are safety-scored and may be redacted or blocked by the global security gate.
 
 Usage:
 1. Open the sidebar → Coach Mode section.
@@ -121,6 +122,14 @@ A lightweight, three-stop orientation component rendered after generating a walk
 - Stop 3: Entrypoint — how to actually run / launch the project
 
 Navigation uses Prev/Next buttons with session-based index (`tour_ix`). The index resets automatically when you change the repo root. All blurbs are sanitized and never execute code.
+
+## Follow-up Ideas
+- Inline warning badges directly below blocked / redacted commands.
+- Configurable policy mode (warn-only vs block dangerous pipelines).
+- Additional secret patterns (HuggingFace, Slack, GitLab tokens, JWT heuristics).
+- Lightweight AST-based command parser to reduce false positives.
+- Optional per-step justification LLM call with strict system prompt.
+- Cumulative risk scoring summary sidebar card.
 
 ### Coach Mode
 Generates a step-by-step walkthrough for this repo with **copyable commands**, **citation chips** (e.g., `README`, `requirements.txt`), and **safety warnings** for risky patterns.  
