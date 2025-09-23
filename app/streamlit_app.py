@@ -7,6 +7,7 @@ from .prompts import SYSTEM_PROMPT
 from .security_utils import sanitize_text, redact_secrets, label_dangerous_commands, penalize_suspicious, injection_score
 from .memory_orchestrator import assemble_context, update_ledger
 from .planner import extract_repo_signals, plan_walkthrough
+from .tour import render_tour
 from .coach import render_coach_page
 
 GH_HEADERS = {"User-Agent": "github-guidebot"}
@@ -484,6 +485,7 @@ repo_root_planner = st.text_input(
 if st.button("Generate Walkthrough", key="planner_generate"):
     try:
         sig = extract_repo_signals(repo_root_planner)
+        st.session_state["last_signals"] = sig
         steps = plan_walkthrough(sig)
     except Exception as e:
         st.error(f"Planner failed: {e}")
@@ -523,17 +525,11 @@ if st.button("Generate Walkthrough", key="planner_generate"):
                 if s.risk > 0.5:
                     cols[2].markdown("⚠️ risky")
 
-        # Simple Repo Tour (static stops for now)
-        st.markdown("**Repo Tour**")
-        stops = ["README", "Dependencies", "Entrypoint"]
-        tour_ix = st.session_state.get("tour_ix", 0)
-        st.write(f"**Stop {tour_ix + 1}/{len(stops)} — {stops[tour_ix]}**")
-        st.caption("Short blurb placeholder: explain purpose & how it connects to user goals.")
-        c1, c2 = st.columns(2)
-        if c1.button("Prev", disabled=tour_ix == 0, key="tour_prev"):
-            st.session_state["tour_ix"] = max(tour_ix - 1, 0)
-        if c2.button("Next", disabled=tour_ix == len(stops) - 1, key="tour_next"):
-            st.session_state["tour_ix"] = min(tour_ix + 1, len(stops) - 1)
+        # Integrated Repo Tour component
+        try:
+            render_tour(sig)
+        except Exception as tour_e:
+            st.caption(f"Repo Tour unavailable: {tour_e}")
 
         if "last_copied_cmd" in st.session_state:
             st.info(f"Last captured command (copy manually): {st.session_state['last_copied_cmd']}")
