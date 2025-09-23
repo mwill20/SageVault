@@ -138,34 +138,67 @@ def _coerce_hit(
     return {"text": str(text or ""), "path": str(path or ""), "similarity": float(sim)}
 
 
+def _matches_any(s: str | None) -> bool:
+    if not s:
+        return False
+    return any(rx.search(s) for rx in INJECTION_REGEXES)
+
+
 def penalize_suspicious(
-    docs: List[Any],
+    payload: Any,
     text_key: str = "text",
     max_share: float | None = None,
-) -> List[Dict[str, Any]]:
+) -> Any:
     """
-    Stable-sort by injection risk (safer first) AND reduce similarity for risky hits.
-    - Accepts dicts/objects; reads .text/.path/.similarity when present.
-    - Returns list of dicts: {"text","path","similarity"} for test compatibility.
-    - `max_share` accepted for API-compatibility (no-op in this minimal impl).
+    Polymorphic safety pass.
+
+    • If `payload` is a list (retrieval hits): stable-sort by injection risk (safer first)
+      and reduce similarity for risky hits. Returns list of dicts:
+      {"text","path","similarity"} for test compatibility.
+
+    • If `payload` is a dict (Coach Mode step): attach/raise `risk` and optional `warning`
+      based on command and text injection signals. Returns a dict.
     """
-    if not docs:
-        return []
-    coerced = [_coerce_hit(d, text_key=text_key) for d in docs]
+    # List path (existing behavior)
+    if isinstance(payload, list):
+        if not payload:
+            return []
+        coerced = [_coerce_hit(d, text_key=text_key) for d in payload]
+        scored: List[Dict[str, Any]] = []
+        for h in coerced:
+            s = injection_score(h["text"])
+            penalty = 1.0 / (1.0 + s)  # s=0 → 1.0; s>=1 → <1.0
+            h2 = dict(h)
+            h2["similarity"] = float(h2["similarity"]) * penalty
+            h2["_inj_score"] = s  # for sorting only
+            scored.append(h2)
+        scored.sort(key=lambda x: x["_inj_score"])  # safer first
+        for h in scored:
+            h.pop("_inj_score", None)
+        return scored
 
-    scored: List[Dict[str, Any]] = []
-    for h in coerced:
-        s = injection_score(h["text"])
-        penalty = 1.0 / (1.0 + s)  # s=0 → 1.0; s>=1 → <1.0
-        h2 = dict(h)
-        h2["similarity"] = float(h2["similarity"]) * penalty
-        h2["_inj_score"] = s  # for sorting only
-        scored.append(h2)
+    # Dict path (Coach Mode step)
+    if isinstance(payload, dict):
+        out = dict(payload)
+        title = str(out.get("title", ""))
+        why = str(out.get("why", ""))
+        cmd = str(out.get("cmd", "") or "")
+        # Base risk nonzero to avoid "zero-risk" illusions
+        risk = float(out.get("risk", 0.1))
 
-    scored.sort(key=lambda x: x["_inj_score"])  # safer first
-    for h in scored:
-        h.pop("_inj_score", None)
-    return scored
+        # Raise risk on detected injection-like text or dangerous pipelines
+        inj = injection_score(" ".join([title, why, cmd]))
+        if inj >= 1:
+            risk = max(risk, 0.6)
+        if re.search(r"curl\s+[^|]+\|\s*sh", cmd, flags=re.I) or re.search(r"rm\s+-rf\s+/?", cmd, flags=re.I):
+            risk = max(risk, 0.9)
+            out["warning"] = "Suspicious shell pipeline detected. Review before running."
+
+        out["risk"] = min(max(risk, 0.0), 1.0)
+        return out
+
+    # Fallback: return as-is
+    return payload
 
 
 def diversity_guard(items: List[dict], key: str = "path", max_per_key: int = 2) -> List[dict]:
@@ -194,6 +227,18 @@ def count_tokens_provider(messages: List[dict], provider: str = "openai:gpt-4o-m
     return sum(count_tokens_rough(m.get("content", "")) for m in messages)
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Streamlit-aware warn helper (no-op outside Streamlit)
+# ──────────────────────────────────────────────────────────────────────────────
+def warn(msg: str) -> None:
+    try:
+        import streamlit as st  # type: ignore
+        st.warning(msg)
+    except Exception:
+        # Silent no-op when Streamlit isn't available (tests/CLI)
+        pass
+
+
 __all__ = [
     "sanitize_text",
     "redact_secrets",
@@ -206,4 +251,5 @@ __all__ = [
     "diversity_guard",
     "count_tokens_rough",
     "count_tokens_provider",
+    "warn",
 ]
