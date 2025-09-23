@@ -1,3 +1,13 @@
+# --- bootstrap import path so app can see modules in repo root and ./src ---
+import sys, pathlib
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+for p in (ROOT, SRC):
+    p_str = str(p)
+    if p_str not in sys.path:
+        sys.path.insert(0, p_str)
+# ---------------------------------------------------------------------------
+
 # streamlit_app.py — flat imports, no relative/package deps
 import os
 import streamlit as st
