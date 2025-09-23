@@ -1,3 +1,14 @@
+# app/security_gate.py (top)
+import sys, pathlib
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+for p in (ROOT, SRC):
+    p_str = str(p)
+    if p_str not in sys.path:
+        sys.path.insert(0, p_str)
+# then the rest:
+from security_utils import penalize_suspicious, redact_secrets, warn
+
 # security_gate.py — flat imports (no leading dots)
 from __future__ import annotations
 from typing import List, Dict, Any
