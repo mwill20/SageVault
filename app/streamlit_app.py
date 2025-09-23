@@ -1,12 +1,13 @@
 import re, requests, textwrap, hashlib, time
 import streamlit as st
 
-from rag_utils import build_store, retrieve
-from llm_utils import call_llm
-from prompts import SYSTEM_PROMPT
-from security_utils import sanitize_text, redact_secrets, label_dangerous_commands, penalize_suspicious, injection_score
-from memory_orchestrator import assemble_context, update_ledger
-from planner import extract_repo_signals, plan_walkthrough
+from .rag_utils import build_store, retrieve
+from .llm_utils import call_llm
+from .prompts import SYSTEM_PROMPT
+from .security_utils import sanitize_text, redact_secrets, label_dangerous_commands, penalize_suspicious, injection_score
+from .memory_orchestrator import assemble_context, update_ledger
+from .planner import extract_repo_signals, plan_walkthrough
+from .coach import render_coach_page
 
 GH_HEADERS = {"User-Agent": "github-guidebot"}
 
@@ -67,6 +68,24 @@ if "api_key" not in st.session_state:
 
 st.title("GitHub GuideBot")
 st.caption("Learn GitHub by doing — paste a public repo and explore.")
+
+# Sidebar entrypoint for Coach Mode (walkthrough) toggle
+with st.sidebar:
+    st.markdown("---")
+    st.subheader("Coach Mode")
+    repo_root_coach = st.text_input("Repo root (Coach)", value=st.session_state.get("coach_repo_root", "."), key="coach_repo_root")
+    coach_trigger = st.button("Generate Walkthrough", key="coach_generate")
+    if coach_trigger:
+        st.session_state["coach_triggered"] = True
+        st.session_state["coach_repo_root"] = repo_root_coach
+    if st.session_state.get("coach_triggered"):
+        if st.button("Exit Coach Mode", key="coach_exit"):
+            st.session_state["coach_triggered"] = False
+
+# If Coach Mode active, render and short-circuit rest of explorer UI
+if st.session_state.get("coach_triggered"):
+    render_coach_page(st.session_state.get("coach_repo_root", "."))
+    st.stop()
 
 # Shorter inputs (layout no longer constrained by columns)
 repo_url = st.text_input(
