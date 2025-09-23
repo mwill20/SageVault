@@ -93,3 +93,21 @@ Guideline: For future phases, add sections using the same headings (Added / Chan
 +### Security
 +- Documented allowlist/redaction, dangerous command labeling, provenance,
 +  and hierarchical memory strategy in SECURITY.md and README.
+
+
+## [v0.3] - 2025-09-23
+### Added
+- Security utilities: sanitization, redaction, injection heuristics, diversity guard, token counting.
+- Memory orchestration: episodic → rolling window → ledger → summaries.
+- Retrieval integration: k=18 with injection penalties; ledger appended to context.
+- CI: pytest on push/PR; Audit Reporter outputs JSON/CSV/MD.
+
+### Changed
+- UI: warning surfaces prepared for `st.warning`.
+
+### Docs
+- SECURITY.md, README updates (Security Model, Memory Routing, CI artifacts).
+
+### Pending polish for v0.3 tag
+- Replace bold WARN with `st.warning(...)`.
+- Add provenance badges (file · lines · similarity).
