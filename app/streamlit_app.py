@@ -4,8 +4,9 @@ import streamlit as st
 from rag_utils import build_store, retrieve
 from llm_utils import call_llm
 from prompts import SYSTEM_PROMPT
-from security_utils import sanitize_text, redact_secrets, label_dangerous_commands, penalize_suspicious
+from security_utils import sanitize_text, redact_secrets, label_dangerous_commands, penalize_suspicious, injection_score
 from memory_orchestrator import assemble_context, update_ledger
+from planner import extract_repo_signals, plan_walkthrough
 
 GH_HEADERS = {"User-Agent": "github-guidebot"}
 
@@ -449,3 +450,71 @@ if "collection" in st.session_state:
                 show_provenance(file_path, score=h.get("similarity"))
 else:
     st.info("Analyze a repo to build the index.")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Walkthrough Planner (experimental MVP)
+# ─────────────────────────────────────────────────────────────────────────────
+st.divider()
+st.subheader("Walkthrough Planner (Experimental)")
+st.caption("Generate a guided onboarding plan for a local checkout of this repo.")
+
+repo_root_planner = st.text_input(
+    "Local repo root (server file system path)", value=".", key="planner_repo_root",
+    help="Path where the repository is cloned. Defaults to current directory."
+)
+if st.button("Generate Walkthrough", key="planner_generate"):
+    try:
+        sig = extract_repo_signals(repo_root_planner)
+        steps = plan_walkthrough(sig)
+    except Exception as e:
+        st.error(f"Planner failed: {e}")
+        steps = []
+
+    safe_steps = []
+    for step in steps:
+        # Basic safety: reuse injection heuristics across title/why/cmd
+        risk_hits = 0
+        for field in (step.title, step.why, step.cmd or ""):
+            risk_hits += injection_score(field)
+        if risk_hits > 0:
+            warn(f"Potential prompt-injection or risky pattern in step '{step.id}'. Review before executing.")
+        safe_steps.append(step)
+
+    # Sidebar signals card (appends to existing sidebar content)
+    with st.sidebar:
+        st.subheader("Walkthrough Signals")
+        st.write({
+            "readme": sig.readme_path,
+            "deps": sig.deps,
+            "entrypoint": sig.entrypoint,
+            "lang": sig.lang,
+        })
+
+    if safe_steps:
+        st.markdown("**Coach Mode**")
+        for ix, s in enumerate(safe_steps, start=1):
+            cols = st.columns([6, 2, 2])
+            cols[0].markdown(f"**{ix}. {s.title}** — {s.why}")
+            cols[0].caption("Citations: " + ", ".join(s.cite))
+            if s.cmd:
+                # copy button stores command in session for manual copy (Streamlit lacks clipboard write w/out JS)
+                def _store(cmd=s.cmd):
+                    st.session_state["last_copied_cmd"] = cmd
+                cols[1].button("Copy cmd", key=f"copy_{s.id}", on_click=_store)
+                if s.risk > 0.5:
+                    cols[2].markdown("⚠️ risky")
+
+        # Simple Repo Tour (static stops for now)
+        st.markdown("**Repo Tour**")
+        stops = ["README", "Dependencies", "Entrypoint"]
+        tour_ix = st.session_state.get("tour_ix", 0)
+        st.write(f"**Stop {tour_ix + 1}/{len(stops)} — {stops[tour_ix]}**")
+        st.caption("Short blurb placeholder: explain purpose & how it connects to user goals.")
+        c1, c2 = st.columns(2)
+        if c1.button("Prev", disabled=tour_ix == 0, key="tour_prev"):
+            st.session_state["tour_ix"] = max(tour_ix - 1, 0)
+        if c2.button("Next", disabled=tour_ix == len(stops) - 1, key="tour_next"):
+            st.session_state["tour_ix"] = min(tour_ix + 1, len(stops) - 1)
+
+        if "last_copied_cmd" in st.session_state:
+            st.info(f"Last captured command (copy manually): {st.session_state['last_copied_cmd']}")
