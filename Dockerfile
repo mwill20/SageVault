@@ -5,4 +5,4 @@ WORKDIR /app
 COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 COPY . /app
-CMD bash -lc "streamlit run streamlit_app.py --server.address=0.0.0.0 --server.port=$PORT"
+CMD bash -lc 'P=${PORT:-8501}; streamlit run streamlit_app.py --server.address=0.0.0.0 --server.port=$P'
