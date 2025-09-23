@@ -177,6 +177,7 @@ def gh_tree(owner, repo):
             st.warning("GitHub rate limit hit. Try again in a minute or use a different repo.")
             return ref, []
 
+
         return ref, tree.json().get("tree", [])
     except requests.RequestException as e:
         st.error(f"Network error: {e}")
@@ -398,18 +399,12 @@ if "collection" in st.session_state:
             llm_answer = redact_secrets(llm_answer)
             llm_answer = label_dangerous_commands(llm_answer)
             st.markdown("**Answer (LLM):**")
-            # Render WARN lines distinctly
-            danger_flagged = False
-            for block in llm_answer.split("\n\n"):
-                if block.startswith("**WARN:**"):
-                    if not danger_flagged:
-                        warn("Potentially dangerous command or prompt injection detected. Proceed carefully.")
-                        danger_flagged = True
-                else:
-                    st.write(block)
-            # persist history for memory layering
+            danger_present = any(seg.startswith("**WARN:**") for seg in llm_answer.split("\n"))
+            if danger_present:
+                warn("Potentially dangerous command or prompt injection pattern detected in generated answer. Review commands carefully before executing.")
+            cleaned_lines = [ln for ln in llm_answer.splitlines() if not ln.startswith("**WARN:**")]  # drop inline markers
+            st.write("\n".join(cleaned_lines))
             st.session_state.setdefault("history", []).append((q, llm_answer[:2000]))
-            # Prepare ledger entry (already redacted & labeled above)
             ledger_entry = {"q": q[:140], "a": llm_answer[:220]}
             updated = update_ledger(st.session_state, ledger_entry, cap=50)
             st.session_state["ledger"] = updated.get("ledger", [])
@@ -424,33 +419,33 @@ if "collection" in st.session_state:
             fallback_out = stitched or hits[0]["text"]
             fallback_out = redact_secrets(fallback_out)
             fallback_out = label_dangerous_commands(fallback_out)
-            danger_flagged = False
-            for block in fallback_out.split("\n\n"):
-                if block.startswith("**WARN:**"):
-                    if not danger_flagged:
-                        warn("Potentially dangerous command or prompt injection detected. Proceed carefully.")
-                        danger_flagged = True
-                else:
-                    st.write(block)
+            danger_present = any(seg.startswith("**WARN:**") for seg in fallback_out.split("\n"))
+            if danger_present:
+                warn("Potentially dangerous command or prompt injection pattern detected in synthesized answer.")
+            cleaned_lines = [ln for ln in fallback_out.splitlines() if not ln.startswith("**WARN:**")]  # drop inline markers
+            st.write("\n".join(cleaned_lines))
             st.session_state.setdefault("history", []).append((q, fallback_out[:2000]))
             ledger_entry = {"q": q[:140], "a": fallback_out[:220]}
             updated = update_ledger(st.session_state, ledger_entry, cap=50)
             st.session_state["ledger"] = updated.get("ledger", [])
 
-        # Citations with links + similarity
-        st.caption("Sources:")
-        meta = st.session_state.get("repo_meta", {})
-        ref = st.session_state.get("ref", "main")
-        owner = meta.get("owner")
-        repo = meta.get("repo")
-        for h in hits:
-            file_path = h["path"]
-            # Optional: direct link (kept minimal to match provenance badge)
-            if owner and repo:
-                gh_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{file_path}"
-                st.markdown(f"- [{file_path}]({gh_url})")
-            else:
-                st.markdown(f"- {file_path}")
-            show_provenance(file_path, score=h.get("similarity"))
+        # Citations & provenance with inline snippet preview
+        with st.expander("Context chunks & sources", expanded=False):
+            meta = st.session_state.get("repo_meta", {})
+            ref = st.session_state.get("ref", "main")
+            owner = meta.get("owner")
+            repo = meta.get("repo")
+            for idx, h in enumerate(hits, start=1):
+                file_path = h.get("path", "?")
+                snippet = (h.get("text") or "").strip()
+                if len(snippet) > 260:
+                    snippet = snippet[:260].rsplit(" ", 1)[0] + " …"
+                if owner and repo:
+                    gh_url = f"https://github.com/{owner}/{repo}/blob/{ref}/{file_path}"
+                    st.markdown(f"**{idx}. [{file_path}]({gh_url})**  (sim {h.get('similarity',0):.2f})")
+                else:
+                    st.markdown(f"**{idx}. {file_path}**  (sim {h.get('similarity',0):.2f})")
+                st.code(snippet or "(empty)")
+                show_provenance(file_path, score=h.get("similarity"))
 else:
     st.info("Analyze a repo to build the index.")
