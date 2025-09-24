@@ -10,4 +10,5 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 COPY . /app
 # Ensure a valid port is set even if upstream envs are empty; prefer $PORT if provided by platform.
-CMD bash -lc "PORT=${PORT:-7860}; export STREAMLIT_SERVER_PORT=$PORT; exec streamlit run app/streamlit_app.py --server.address=0.0.0.0 --server.port=$PORT"
+# Use POSIX sh (present in slim images) instead of bash to avoid missing shell issues
+CMD sh -lc "PORT=${PORT:-7860}; export STREAMLIT_SERVER_PORT=$PORT; exec streamlit run app/streamlit_app.py --server.address=0.0.0.0 --server.port=$PORT"
