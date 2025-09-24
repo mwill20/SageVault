@@ -1,1 +1,23 @@
-streamlit>=1.36
+# --- Core UI & HTTP ---
+streamlit>=1.36,<2
+requests>=2.31,<3
+python-dotenv>=1.0.0
+
+# --- RAG (semantic search) ---
+chromadb==0.4.24
+sentence-transformers==2.7.0
+tiktoken>=0.5.0
+
+# --- Numeric & Data Processing ---
+numpy>=1.24,<2.0
+pandas>=2.0.0
+
+# --- Utils ---
+python-magic>=0.4.27
+
+# --- Testing ---
+pytest>=8.2,<9
+pytest-cov>=4.0.0
+
+# --- Hugging Face Spaces ---
+huggingface-hub>=0.16.0

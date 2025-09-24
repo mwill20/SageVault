@@ -1,0 +1,15 @@
+security:
+  allowlist_domains:
+    - github.com
+    - docs.github.com
+  resource_limits:
+    max_file_mb: 1.5
+    max_blob_lines: 5000
+  citations:
+    require_for_repo_answers: true
+  destructive_guard:
+    warn_on:
+      - git push --force
+      - rm -rf
+      - curl | bash
+      - chmod 777
