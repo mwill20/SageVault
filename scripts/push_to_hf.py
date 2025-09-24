@@ -102,7 +102,7 @@ def main() -> int:
             print(f"Pruning {len(to_delete)} remote file(s)…")
             for rf in to_delete:
                 try:
-                    api.delete_file(path=rf, repo_id=args.space_id, repo_type="space", token=token, commit_message=f"prune: remove stale {rf}")
+                    api.delete_file(path_in_repo=rf, repo_id=args.space_id, repo_type="space", token=token, commit_message=f"prune: remove stale {rf}")
                     print(f" - deleted {rf}")
                 except Exception as e:
                     print(f" ! failed to delete {rf}: {e}")
