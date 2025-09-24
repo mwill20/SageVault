@@ -1,0 +1,50 @@
+GitHub GuideBot Documentation
+============================
+
+Overview
+--------
+GitHub GuideBot is a Retrieval-Augmented Generation (RAG) system that allows users to ask questions about GitHub repositories and uploaded documents. It combines the power of vector search with large language models to provide accurate, context-aware answers.
+
+Key Features
+-----------
+1. GitHub Repository Analysis
+   - Automatically indexes public GitHub repositories
+   - Extracts text from code files, documentation, and README files
+   - Creates searchable vector embeddings for efficient retrieval
+
+2. Document Upload Support
+   - Supports PDF, DOCX, TXT, MD, and other text formats
+   - Processes multiple files simultaneously
+   - Integrates uploaded documents with repository content
+
+3. AI-Powered Q&A
+   - Uses Groq and OpenAI language models
+   - Provides context-aware answers based on indexed content
+   - Shows source references with similarity scores
+
+Technical Stack
+--------------
+- Frontend: Streamlit for web interface
+- Vector Database: ChromaDB for efficient similarity search
+- Embeddings: SentenceTransformers (all-MiniLM-L6-v2)
+- Document Processing: PyPDF2, python-docx
+- LLM Integration: Groq API and OpenAI API
+
+Usage Instructions
+-----------------
+1. For GitHub repositories:
+   - Enter a public repository URL
+   - Click "Index Repository" 
+   - Wait for processing to complete
+
+2. For document upload:
+   - Use the sidebar file uploader
+   - Select one or more supported file types
+   - Click "Index Documents"
+
+3. Ask questions:
+   - Type your question in the text area
+   - Click "Get Answer" to receive AI-generated responses
+   - Review sources in the expandable section below the answer
+
+This system is designed to be user-friendly while providing powerful document analysis capabilities for both code repositories and personal documents.
