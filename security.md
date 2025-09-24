@@ -42,3 +42,9 @@ Users are responsible for validating commands, especially in production or privi
 
 ## Global Safety Gate
 All steps and free-form text pass through a unified security gate: `penalize_suspicious` + `redact_secrets` with surfaced warnings via `warn()`. Commands are never executed by the application; any high‑risk shell pipelines (e.g., `curl … | sh`) may be blocked or replaced before display.
+
+## Deployment
+
+Live Demo (Hugging Face Space):
+
+- https://huggingface.co/spaces/mwill-AImission/github-guidebot-mvp
