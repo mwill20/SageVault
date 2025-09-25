@@ -1,4 +1,4 @@
-"""GitHub GuideBot - Clean RAG MVP with Document Upload"""
+"""SageVault - Clean RAG MVP with Document Upload"""
 import streamlit as st
 import requests
 from urllib.parse import urlparse
@@ -23,8 +23,8 @@ except ImportError:
 
 # Configure Streamlit
 st.set_page_config(
-    page_title="GitHub GuideBot - RAG MVP",
-    page_icon="🤖",
+    page_title="SageVault - RAG MVP",
+    page_icon="�",
     layout="wide"
 )
 
@@ -227,7 +227,7 @@ def call_llm(provider: str, api_key: str, prompt: str) -> str:
     return "Unknown provider selected."
 
 # Main UI
-st.title("🤖 GitHub GuideBot - RAG MVP")
+st.title("� SageVault - RAG MVP")
 st.markdown("Ask questions about any public GitHub repository!")
 
 # Sidebar

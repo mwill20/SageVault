@@ -199,8 +199,8 @@ def answer_with_llm(provider: str, api_key: str, question: str, context: str) ->
     return "(Unknown provider; pick Groq, OpenAI, or None.)"
 
 # --- UI ---
-st.set_page_config(page_title="GitHub GuideBot — RAG MVP", layout="wide")
-st.title("GitHub GuideBot — RAG MVP")
+st.set_page_config(page_title="SageVault — RAG MVP", layout="wide")
+st.title("SageVault — RAG MVP")
 
 # Sidebar: provider, API key, chunking controls
 with st.sidebar:

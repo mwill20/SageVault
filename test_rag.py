@@ -12,7 +12,7 @@ try:
     # Test 2: Create a simple collection
     print("2. Testing collection creation...")
     test_corpus = {
-        "README.md": "# Test Project\nThis is a test project for GitHub GuideBot.",
+        "README.md": "# Test Project\nThis is a test project for SageVault.",
         "main.py": "def hello():\n    print('Hello World')\n\nif __name__ == '__main__':\n    hello()"
     }
     collection = build_store(test_corpus, "test_repo")

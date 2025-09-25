@@ -1,14 +1,18 @@
-# GitHub GuideBot - RAG MVP
+<div align="center">
+  <img src="assets/sagevault-logo.png" alt="SageVault Logo" width="400"/>
+</div>
 
-**Intelligent Document Analysis with Retrieval-Augmented Generation**
+# SageVault - RAG MVP
+
+**Secure Knowledge, Unlocked.**
 
 Transform how you explore GitHub repositories and analyze documents with AI-powered question answering, multi-source indexing, and comprehensive security controls.
 
 ---
 
-## 🚀 What is GitHub GuideBot?
+## 🚀 What is SageVault?
 
-GitHub GuideBot is a powerful **Retrieval-Augmented Generation (RAG)** application that allows you to:
+SageVault is a powerful **Retrieval-Augmented Generation (RAG)** application that allows you to:
 
 - **📂 Analyze GitHub Repositories**: Index and query any public GitHub repository
 - **📄 Process Documents**: Upload and analyze PDF, DOCX, and text files  
@@ -68,8 +72,8 @@ GitHub GuideBot is a powerful **Retrieval-Augmented Generation (RAG)** applicati
 
 ```bash
 # Clone the repository
-git clone https://github.com/mwill20/github-guidebot.git
-cd github-guidebot
+git clone https://github.com/mwill20/sagevault.git
+cd sagevault
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -194,10 +198,11 @@ pytest -v
 
 ### **Project Structure**
 ```
-github-guidebot/
+sagevault/
 ├── streamlit_app_clean.py     # Main RAG application  
 ├── simple_rag.py             # Core RAG utilities
 ├── requirements_clean.txt    # Production dependencies
+├── assets/                   # Logo and branding assets
 ├── app/                      # Legacy full-featured version
 ├── tests/                    # Test suite
 ├── security.md              # Security documentation
@@ -269,4 +274,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Built with ❤️ for developers, researchers, and security professionals who need intelligent document analysis.**
+**Built with ❤️ for developers, researchers, and security professionals who need secure, intelligent document analysis.**

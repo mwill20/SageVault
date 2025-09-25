@@ -113,7 +113,7 @@ def test_multi_source_indexing():
 
 def main():
     """Run all enhancement tests"""
-    print("🚀 Testing GitHub GuideBot Enhancements")
+    print("🚀 Testing SageVault Enhancements")
     print("=" * 50)
     
     try:

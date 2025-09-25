@@ -43,7 +43,7 @@ def _simple_risk(cmd: str | None) -> float:
 def plan_walkthrough(sig: RepoSignals) -> List[PlanStep]:
     steps: List[PlanStep] = []
     steps.append(PlanStep("clone", "Clone repo", "Get the code locally.", ["README"], 
-                          "git clone https://github.com/your-org/github-guidebot && cd github-guidebot"))
+                          "git clone https://github.com/your-org/sagevault && cd sagevault"))
     if sig.deps.get("pip"):
         steps.append(PlanStep("deps", "Install dependencies", "Prepare environment.", ["requirements.txt"], 
                               "pip install -r requirements.txt"))
