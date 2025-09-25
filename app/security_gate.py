@@ -1,13 +1,21 @@
 from __future__ import annotations
 from typing import List, Dict, Any
 
-# Use explicit relative imports to match package style elsewhere.
-from .security_utils import (
-    penalize_suspicious,
-    redact_secrets,
-    sanitize_text,
-)
-from .security_utils import warn  # warn is a UI helper that wraps st.warning
+# Support both package and direct module execution contexts
+try:  # preferred when imported as part of the 'app' package
+    from .security_utils import (
+        penalize_suspicious,
+        redact_secrets,
+        sanitize_text,
+    )
+    from .security_utils import warn  # warn is a UI helper that wraps st.warning
+except Exception:  # fallback for ad-hoc runs where relative import may fail
+    from security_utils import (
+        penalize_suspicious,
+        redact_secrets,
+        sanitize_text,
+        warn,
+    )
 
 
 def secure_text(text: str | None) -> str:

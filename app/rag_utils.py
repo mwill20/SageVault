@@ -1,18 +1,72 @@
-# app/rag_utils.py
+"""RAG utilities with lazy-loaded heavy deps.
+
+Defers importing chromadb and sentence-transformers until needed so that simply
+importing this module (e.g., by a smoke test) doesn't require those packages.
+"""
 from __future__ import annotations
+import os
 import re
 from typing import Dict, List
-import chromadb
-from chromadb.config import Settings
 
 # Singleton client cache to avoid 'instance already exists with different settings' errors
 _CHROMA_CLIENT = None
 def _client():
+    """Return a singleton chromadb client; imports chromadb on first use."""
     global _CHROMA_CLIENT
     if _CHROMA_CLIENT is None:
+        # Best-effort: disable telemetry via env before importing
+        os.environ.setdefault("ANONYMIZED_TELEMETRY", "false")
+        os.environ.setdefault("CHROMADB_DISABLE_TELEMETRY", "true")
+        
+        import chromadb  # lazy import
+        from chromadb.config import Settings  # lazy import
+        
+        import chromadb  # lazy import
+        from chromadb.config import Settings  # lazy import
+            
         _CHROMA_CLIENT = chromadb.Client(Settings(anonymized_telemetry=False))
+        # Extra guard: silence telemetry capture if present (API varies across versions)
+        try:
+            # Common logger silencing (if used internally)
+            import logging
+            logging.getLogger("chromadb.telemetry").setLevel(logging.CRITICAL)
+            logging.getLogger("chromadb").setLevel(logging.ERROR)
+        except Exception:
+            pass
+        try:
+            # Comprehensive telemetry capture silencing across multiple potential API surfaces
+            import chromadb.telemetry as tel_module
+            
+            # Replace module-level capture function if it exists
+            if hasattr(tel_module, "capture"):
+                tel_module.capture = lambda *args, **kwargs: None
+                
+            # Replace instance-level capture methods on common telemetry objects
+            tel = getattr(chromadb, "telemetry", None)
+            if tel is not None:
+                if hasattr(tel, "capture"):
+                    tel.capture = lambda *args, **kwargs: None  # type: ignore[assignment]
+                # Some versions expose nested telemetry objects
+                for attr in ("telemetry", "_telemetry", "client"):
+                    obj = getattr(tel, attr, None)
+                    if obj is not None and hasattr(obj, "capture"):
+                        try:
+                            obj.capture = lambda *args, **kwargs: None  # type: ignore[attr-defined]
+                        except Exception:
+                            pass
+                            
+            # Also try to patch any global telemetry client instances
+            try:
+                import chromadb.telemetry.posthog as posthog_tel
+                if hasattr(posthog_tel, "capture"):
+                    posthog_tel.capture = lambda *args, **kwargs: None
+            except ImportError:
+                pass
+                
+        except Exception:
+            # If chroma internals change, we silently ignore; Settings() already disables telemetry
+            pass
     return _CHROMA_CLIENT
-from sentence_transformers import SentenceTransformer
 
 # --- Chunking parameters (adjusted as requested) ---
 CHUNK_SIZE = 500
@@ -21,8 +75,10 @@ CHUNK_OVERLAP = 50
 # Lazy-load the small, fast model
 _MODEL = None
 def _model():
+    """Return a singleton sentence-transformers model; imports on first use."""
     global _MODEL
     if _MODEL is None:
+        from sentence_transformers import SentenceTransformer  # lazy import
         _MODEL = SentenceTransformer("all-MiniLM-L6-v2")  # downloads on first use
     return _MODEL
 

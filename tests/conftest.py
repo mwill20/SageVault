@@ -1,8 +1,15 @@
 # tests/conftest.py
 from __future__ import annotations
-import json, csv, os
+import json, csv, os, sys
 from typing import Any, Dict, List
 import pytest
+
+# Ensure the repository root (which contains the 'app' package) is on sys.path
+# even if pytest is invoked from a parent directory.
+_THIS_DIR = os.path.dirname(__file__)
+_REPO_ROOT = os.path.abspath(os.path.join(_THIS_DIR, os.pardir))
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -24,7 +31,7 @@ def audit(request):
     """
     node = request.node
     if not hasattr(node, "_audit_logs"):
-        node._audit_logs: List[Dict[str, Any]] = []
+        node._audit_logs = []
     def _log(kind: str, query: str = "", result: str = ""):
         node._audit_logs.append({"kind": kind, "query": query, "result": result})
     return _log

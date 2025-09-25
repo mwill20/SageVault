@@ -89,45 +89,73 @@ def parse_github_url(url: str) -> Tuple[str, str]:
     
     return parts[0], parts[1]
 
-def fetch_github_files(owner: str, repo: str, max_files: int = 100) -> Dict[str, str]:
+def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token: str = None) -> Dict[str, str]:
     """Fetch text files from GitHub repository"""
     files = {}
     
+    # Set up headers with authentication if token provided
+    headers = {}
+    if github_token:
+        headers['Authorization'] = f'token {github_token}'
+    
     # Get repository tree
     tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/main?recursive=1"
-    response = requests.get(tree_url, timeout=30)
+    response = requests.get(tree_url, headers=headers, timeout=30)
     
     if response.status_code != 200:
         # Try master branch
         tree_url = f"https://api.github.com/repos/{owner}/{repo}/git/trees/master?recursive=1"
-        response = requests.get(tree_url, timeout=30)
+        response = requests.get(tree_url, headers=headers, timeout=30)
     
     if response.status_code != 200:
         raise Exception(f"Could not access repository: {response.status_code}")
     
     tree_data = response.json()
     
-    # Filter for text files
-    text_extensions = {'.md', '.txt', '.py', '.js', '.ts', '.java', '.cpp', '.c', '.h', 
-                      '.css', '.html', '.json', '.yml', '.yaml', '.xml', '.rst', '.cfg', '.ini'}
+    # Filter for text files - expanded list
+    text_extensions = {
+        # Documentation
+        '.md', '.txt', '.rst', '.adoc', '.wiki',
+        # Programming languages
+        '.py', '.js', '.ts', '.jsx', '.tsx', '.java', '.cpp', '.c', '.h', '.hpp', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.scala',
+        # Web technologies  
+        '.css', '.html', '.htm', '.scss', '.sass', '.less',
+        # Configuration
+        '.json', '.yml', '.yaml', '.xml', '.toml', '.cfg', '.ini', '.conf', '.config',
+        # Shell scripts
+        '.sh', '.bash', '.zsh', '.ps1', '.bat', '.cmd',
+        # Other common text files
+        '.sql', '.r', '.m', '.pl', '.lua', '.vim', '.dockerfile'
+    }
+    
+    # Also include files without extensions that are likely text (like README, LICENSE, etc.)
+    common_text_files = {'readme', 'license', 'changelog', 'contributing', 'authors', 'credits', 'makefile', 'dockerfile', 'requirements'}
     
     count = 0
+    
     for item in tree_data.get('tree', []):
         if item['type'] != 'blob' or count >= max_files:
             continue
             
         path = item['path']
-        if not any(path.lower().endswith(ext) for ext in text_extensions):
-            continue
+        filename = path.lower()
+        # Check if it's a text file by extension or by common filename
+        is_text_file = (
+            any(filename.endswith(ext) for ext in text_extensions) or
+            any(common_name in filename for common_name in common_text_files)
+        )
         
+        if not is_text_file:
+            continue
+            
         # Fetch file content
         try:
             raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/main/{path}"
-            file_response = requests.get(raw_url, timeout=15)
+            file_response = requests.get(raw_url, headers=headers if github_token else {}, timeout=15)
             
             if file_response.status_code != 200:
                 raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/master/{path}"
-                file_response = requests.get(raw_url, timeout=15)
+                file_response = requests.get(raw_url, headers=headers if github_token else {}, timeout=15)
             
             if file_response.status_code == 200 and len(file_response.content) < 100000:  # Max 100KB
                 try:
@@ -188,6 +216,14 @@ with st.sidebar:
     provider = st.selectbox("LLM Provider", ["None", "Groq", "OpenAI"])
     api_key = st.text_input("API Key", type="password", 
                            help="Your API key (stored only for this session)")
+    
+    st.markdown("---")
+    st.subheader("🔑 GitHub Token (Optional)")
+    github_token = st.text_input(
+        "GitHub Personal Access Token", 
+        type="password",
+        help="Optional: Increases API rate limits and access to private repos"
+    )
     
     st.markdown("---")
     
@@ -268,7 +304,7 @@ if index_button and repo_url:
             owner, repo = parse_github_url(repo_url)
             
             # Fetch files
-            files = fetch_github_files(owner, repo)
+            files = fetch_github_files(owner, repo, github_token=github_token)
             
             if not files:
                 st.error("No suitable text files found in repository")
@@ -279,6 +315,18 @@ if index_button and repo_url:
                 # Store in session
                 st.session_state.collection = collection
                 st.session_state.repo_info = {"owner": owner, "repo": repo, "files": len(files)}
+                
+                # Show what files were indexed
+                with st.expander("📁 Files Indexed", expanded=False):
+                    st.write(f"**Total files indexed: {len(files)}**")
+                    for i, (file_path, content) in enumerate(files.items()):
+                        char_count = len(content)
+                        st.write(f"{i+1}. `{file_path}` ({char_count:,} characters)")
+                        if i >= 9:  # Show first 10 files
+                            remaining = len(files) - 10
+                            if remaining > 0:
+                                st.write(f"... and {remaining} more files")
+                            break
                 
                 st.success(f"✅ Successfully indexed {len(files)} files from {owner}/{repo}")
                 
@@ -343,7 +391,8 @@ Please provide a clear, helpful answer based only on the provided context. If yo
                     st.markdown("---")  # Separator
                 
                 # Show sources below the answer
-                with st.expander("📚 Sources", expanded=False):  # Changed to collapsed by default
+                with st.expander("📚 Sources", expanded=True):  # Show expanded to see what files are being used
+                    st.write(f"**Found {len(results)} relevant sources**")
                     for i, result in enumerate(results[:5]):  # Show top 5
                         file_path = result['file_path']
                         similarity = result.get('similarity', 0.0)
@@ -363,9 +412,9 @@ Please provide a clear, helpful answer based only on the provided context. If yo
                             # Other source
                             st.markdown(f"📋 **{file_path}** (similarity: {similarity:.3f})")
                         
-                        # Show text preview
-                        text_preview = result['text'][:300] + "..." if len(result['text']) > 300 else result['text']
-                        st.code(text_preview)
+                        # Show text preview with more context
+                        text_preview = result['text'][:500] + "..." if len(result['text']) > 500 else result['text']
+                        st.code(text_preview, language="text")
                     
         except Exception as e:
             st.error(f"Error processing question: {str(e)}")

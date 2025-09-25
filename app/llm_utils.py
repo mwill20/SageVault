@@ -1,6 +1,6 @@
 # app/llm_utils.py
 import requests
-from .prompts import SYSTEM_PROMPT  # lean runtime system prompt
+from prompts import SYSTEM_PROMPT  # lean runtime system prompt
 
 def call_llm(provider: str, api_key: str, question: str, context: str) -> str:
     provider = (provider or "").strip().lower()
