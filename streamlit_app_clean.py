@@ -285,6 +285,8 @@ with st.sidebar:
             with st.spinner("Processing uploaded documents..."):
                 # Process uploaded files
                 documents = []
+                all_files_dict = {}
+                
                 for uploaded_file in uploaded_files:
                     filename, text = extract_text_from_file(uploaded_file)
                     if text and not text.startswith("Error"):
@@ -293,11 +295,48 @@ with st.sidebar:
                             'source': f"uploaded:{filename}",
                             'url': f"file://{filename}"
                         })
+                        all_files_dict[f"uploaded:{filename}"] = text
                         st.info(f"✅ {filename}")
                     else:
                         st.warning(f"❌ {filename}: {text}")
                 
                 if documents:
+                    # Security assessment for uploaded files
+                    from simple_rag import identify_risky_files
+                    risky_files = identify_risky_files(all_files_dict)
+                    
+                    if risky_files:
+                        # Show security warning for uploads
+                        st.warning("⚠️ **Security Alert: Risky Files in Upload**")
+                        
+                        with st.expander("🛡️ Upload Security Assessment", expanded=True):
+                            st.markdown("The following uploaded files have been flagged:")
+                            
+                            for risk_file in risky_files:
+                                risk_color = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟠"}[risk_file['risk_level']]
+                                clean_name = risk_file['file_path'].replace("uploaded:", "")
+                                st.markdown(f"{risk_color} **{risk_file['risk_level']} RISK**: `{clean_name}`")
+                                st.markdown(f"   *{risk_file['reason']}*")
+                            
+                            st.markdown("---")
+                            st.markdown("**⚠️ SECURITY WARNING ⚠️**")
+                            st.markdown("These files may contain malicious content. Continue only if you trust the source.")
+                            
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                if st.button("🛑 Cancel Upload", type="primary", use_container_width=True, key="cancel_upload"):
+                                    st.info("❌ Document upload cancelled for security reasons.")
+                                    st.stop()
+                            
+                            with col2:
+                                upload_override = st.button("⚠️ Trust and Continue", type="secondary", use_container_width=True, key="upload_override")
+                            
+                            if not upload_override:
+                                st.info("🔒 Upload paused. Please review the security assessment above.")
+                                st.stop()
+                            else:
+                                st.success("⚠️ Security override accepted for uploads...")
+                    
                     # Convert to format expected by create_vector_store (Dict[str, str])
                     doc_dict = {}
                     for doc in documents:
@@ -342,7 +381,7 @@ if "documents" not in st.session_state:
 # Index repository
 if index_button and repo_url:
     try:
-        with st.spinner("Indexing repository..."):
+        with st.spinner("Analyzing repository..."):
             # Parse URL
             owner, repo = parse_github_url(repo_url)
             
@@ -352,6 +391,53 @@ if index_button and repo_url:
             if not files:
                 st.error("No suitable text files found in repository")
             else:
+                # Security assessment
+                from simple_rag import identify_risky_files
+                risky_files = identify_risky_files(files)
+                
+                if risky_files:
+                    # Show security warning
+                    st.warning("⚠️ **Security Alert: Potentially Risky Files Detected**")
+                    
+                    with st.expander("🛡️ Security Assessment", expanded=True):
+                        st.markdown("The following files have been identified as potentially risky:")
+                        
+                        for risk_file in risky_files:
+                            risk_color = {"HIGH": "🔴", "MEDIUM": "🟡", "LOW": "🟠"}[risk_file['risk_level']]
+                            st.markdown(f"{risk_color} **{risk_file['risk_level']} RISK**: `{risk_file['file_path']}`")
+                            st.markdown(f"   *{risk_file['reason']}*")
+                        
+                        st.markdown("---")
+                        st.markdown("**⚠️ SECURITY WARNING ⚠️**")
+                        st.markdown("Processing these files may expose you to:")
+                        st.markdown("- Malicious code execution")
+                        st.markdown("- Data exfiltration attempts")
+                        st.markdown("- System compromise")
+                        st.markdown("- Prompt injection attacks")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            if st.button("🛑 Cancel (Recommended)", type="primary", use_container_width=True):
+                                st.info("❌ Repository analysis cancelled for security reasons.")
+                                st.stop()
+                        
+                        with col2:
+                            security_override = st.button("⚠️ I Accept the Risk", type="secondary", use_container_width=True)
+                        
+                        if not security_override:
+                            st.info("🔒 Repository analysis paused. Please review the security risks above.")
+                            st.stop()
+                        else:
+                            st.success("⚠️ Security override accepted. Proceeding with analysis...")
+                            # Remove risky files from processing
+                            risky_file_paths = {rf['file_path'] for rf in risky_files}
+                            safe_files = {k: v for k, v in files.items() if k not in risky_file_paths}
+                            files = safe_files
+                            
+                            if not files:
+                                st.error("No safe files remaining after security filtering.")
+                                st.stop()
+                
                 # Create vector store
                 collection = create_vector_store(files, f"{owner}_{repo}", chunk_size, overlap_percent)
                 

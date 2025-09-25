@@ -60,6 +60,52 @@ def is_safe_file_type(filename: str) -> bool:
     
     return False
 
+def identify_risky_files(files: Dict[str, str]) -> List[Dict[str, str]]:
+    """Identify potentially risky files and return risk assessment"""
+    risky_files = []
+    
+    # High-risk file patterns
+    dangerous_extensions = {'.exe', '.bat', '.cmd', '.ps1', '.scr', '.vbs', '.jar'}
+    suspicious_extensions = {'.bin', '.dll', '.so', '.dylib'}
+    script_extensions = {'.sh', '.bash', '.zsh', '.fish'}
+    
+    for file_path in files.keys():
+        filename_lower = file_path.lower()
+        risk_level = None
+        reason = None
+        
+        # Check for dangerous executables
+        if any(filename_lower.endswith(ext) for ext in dangerous_extensions):
+            risk_level = "HIGH"
+            reason = "Executable file that could contain malware or malicious code"
+        
+        # Check for suspicious binaries
+        elif any(filename_lower.endswith(ext) for ext in suspicious_extensions):
+            risk_level = "MEDIUM"
+            reason = "Binary file that cannot be safely analyzed as text"
+        
+        # Check for shell scripts (potentially risky but often legitimate)
+        elif any(filename_lower.endswith(ext) for ext in script_extensions):
+            content = files[file_path][:500].lower()  # Check first 500 chars
+            if any(pattern in content for pattern in ['curl', 'wget', 'rm -rf', 'chmod 777', '| sh', '| bash']):
+                risk_level = "MEDIUM"
+                reason = "Shell script contains potentially dangerous commands"
+        
+        # Check content for suspicious patterns
+        elif not is_safe_file_type(file_path):
+            risk_level = "LOW"
+            reason = "File type not in standard safe list"
+        
+        if risk_level:
+            risky_files.append({
+                'file_path': file_path,
+                'risk_level': risk_level,
+                'reason': reason,
+                'can_override': True
+            })
+    
+    return risky_files
+
 def chunk_text(text: str, max_chars: int = 500, overlap_percent: float = 10.0) -> List[str]:
     """Simple text chunking with overlap"""
     if not text or len(text) <= max_chars:

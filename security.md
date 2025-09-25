@@ -1,6 +1,35 @@
-# Security Policy
+# Secu## Enhanced Security Controls
 
-## Supported Scope
+### 🛡️ **File Type Security**
+- **Safe File Filtering**: Comprehensive allowlist of text/code files (.py, .js, .md, .json, .ipynb, etc.)
+- **Binary File Blocking**: Automatically blocks executables (.exe, .bat, .ps1), archives (.zip, .tar), and media files
+- **Size Limits**: Files exceeding 100KB are truncated to prevent resource exhaustion
+- **Extension Validation**: Files without extensions are checked against known safe patterns (README, LICENSE, etc.)
+
+### 🔐 **Content Security**
+- **Sanitization & Redaction**: Control characters stripped, Markdown links neutralized, secrets (API keys, JWTs, tokens) replaced with `[REDACTED]`
+- **LLM Safety Instructions**: System explicitly prevents code execution - only reads and reproduces content
+- **Prompt Injection Heuristics**: Regex-based scoring for suspicious patterns ("ignore previous instructions", "reveal system prompt")
+- **Input Validation**: Multi-layer content filtering before processing
+
+### 🎯 **Retrieval Security**
+- **README Prioritization**: Ensures documentation context is always available for better understanding
+- **Diversity Guard**: Retrieval results capped per file path to prevent single-file dominance
+- **Similarity Thresholds**: Low-relevance content filtered out to prevent information leakage
+- **Provenance Tracking**: All snippets include file path, chunk ID, and similarity scores
+
+### ⚠️ **Security Override (Advanced Users)**
+For security professionals and advanced users who need to analyze potentially risky content:
+- **Risk Assessment**: System identifies and warns about potentially malicious files/repositories
+- **Informed Consent**: Clear warnings about risks with explicit user confirmation required
+- **Audit Trail**: All override decisions logged for accountability
+- **Controlled Access**: Override available only when user explicitly accepts responsibility
+
+### 🔍 **Session Security**
+- **Memory-Only Storage**: API keys and tokens never written to disk or logs
+- **Session Isolation**: Each session maintains separate context and credentials
+- **Automatic Cleanup**: Sensitive data cleared when session ends
+- **No Persistent Storage**: Vector databases and processed content cleared between sessionsSupported Scope
 - This project only supports **public GitHub repositories**.
 - LLM API keys are kept **in-session only** and never written to disk or logs.
 
@@ -42,9 +71,3 @@ Users are responsible for validating commands, especially in production or privi
 
 ## Global Safety Gate
 All steps and free-form text pass through a unified security gate: `penalize_suspicious` + `redact_secrets` with surfaced warnings via `warn()`. Commands are never executed by the application; any high‑risk shell pipelines (e.g., `curl … | sh`) may be blocked or replaced before display.
-
-## Deployment
-
-Live Demo (Hugging Face Space):
-
-- https://huggingface.co/spaces/mwill-AImission/github-guidebot-mvp
