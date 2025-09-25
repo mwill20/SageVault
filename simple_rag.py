@@ -179,12 +179,37 @@ def create_vector_store(documents: Dict[str, str], collection_name: str = "docs"
     
     return collection
 
-def search_vector_store(collection: object, query: str, k: int = 5) -> List[Dict]:
-    """Search the vector store with README prioritization"""
+def enhance_query_with_context(query: str, repo_info: Dict = None, top_level_dirs: List[str] = None) -> str:
+    """Expand user query with repository context for better retrieval recall"""
+    enhanced_parts = [query]
+    
+    # Add repository context if available
+    if repo_info and 'owner' in repo_info and 'repo' in repo_info:
+        repo_context = f"{repo_info['owner']}/{repo_info['repo']}"
+        enhanced_parts.append(repo_context)
+    
+    # Add top-level directory context for better structure understanding
+    if top_level_dirs:
+        # Only add the most relevant directories to avoid query bloat
+        excluded_dirs = {'node_modules', '.git', '__pycache__', 'venv', '.env'}
+        relevant_dirs = [d for d in top_level_dirs[:5] if d.lower() not in excluded_dirs]
+        if relevant_dirs:
+            dir_context = " ".join(relevant_dirs)
+            enhanced_parts.append(dir_context)
+    
+    # Join with spaces, maintaining natural language flow
+    enhanced_query = " ".join(enhanced_parts)
+    return enhanced_query
+
+def search_vector_store(collection: object, query: str, k: int = 5, repo_info: Dict = None, top_level_dirs: List[str] = None) -> List[Dict]:
+    """Search the vector store with enhanced query rewriting and README prioritization"""
     model = get_embeddings_model()
     
-    # Create query embedding
-    query_embedding = model.encode([query], normalize_embeddings=True)
+    # Enhance query with repository context for better recall
+    enhanced_query = enhance_query_with_context(query, repo_info, top_level_dirs)
+    
+    # Create query embedding using enhanced query
+    query_embedding = model.encode([enhanced_query], normalize_embeddings=True)
     
     # Search for more results to ensure we can find README content
     search_k = min(k * 3, 50)  # Search more broadly first
@@ -221,17 +246,87 @@ def search_vector_store(collection: object, query: str, k: int = 5) -> List[Dict
     readme_results.sort(key=lambda x: x["similarity"], reverse=True)
     other_results.sort(key=lambda x: x["similarity"], reverse=True)
     
-    # Ensure at least one README is included if available
-    final_results = []
-    if readme_results:
-        final_results.append(readme_results[0])  # Always include top README
-        remaining_k = k - 1
-        
-        # Add remaining results (mix of README and others)
-        all_remaining = readme_results[1:] + other_results
-        all_remaining.sort(key=lambda x: x["similarity"], reverse=True)
-        final_results.extend(all_remaining[:remaining_k])
+    # Apply MMR (Maximal Marginal Relevance) for diversity
+    all_candidates = readme_results + other_results
+    if len(all_candidates) > k:
+        final_results = apply_mmr(all_candidates, query_embedding[0], k, lambda_param=0.7)
     else:
-        final_results = other_results[:k]
+        # If we have fewer candidates than k, just ensure README priority
+        final_results = []
+        if readme_results:
+            final_results.append(readme_results[0])  # Always include top README
+            remaining_k = k - 1
+            
+            # Add remaining results (mix of README and others)
+            all_remaining = readme_results[1:] + other_results
+            all_remaining.sort(key=lambda x: x["similarity"], reverse=True)
+            final_results.extend(all_remaining[:remaining_k])
+        else:
+            final_results = other_results[:k]
     
     return final_results[:k]
+
+def apply_mmr(candidates: List[Dict], query_embedding: List[float], k: int, lambda_param: float = 0.7) -> List[Dict]:
+    """Apply Maximal Marginal Relevance to balance similarity and novelty"""
+    if not candidates or k <= 0:
+        return []
+    
+    model = get_embeddings_model()
+    selected = []
+    remaining = candidates.copy()
+    
+    # First selection: highest similarity to query
+    best_candidate = max(remaining, key=lambda x: x["similarity"])
+    selected.append(best_candidate)
+    remaining.remove(best_candidate)
+    
+    # Get embeddings for remaining candidates
+    remaining_texts = [c["text"] for c in remaining]
+    if not remaining_texts:
+        return selected
+    
+    remaining_embeddings = model.encode(remaining_texts, normalize_embeddings=True)
+    
+    # Iteratively select based on MMR score
+    while len(selected) < k and remaining:
+        mmr_scores = []
+        
+        for i, candidate in enumerate(remaining):
+            # Similarity to query (relevance)
+            sim_to_query = candidate["similarity"]
+            
+            # Maximum similarity to already selected items (redundancy)
+            max_sim_to_selected = 0.0
+            if selected:
+                candidate_emb = remaining_embeddings[i:i+1]
+                selected_texts = [s["text"] for s in selected]
+                selected_embs = model.encode(selected_texts, normalize_embeddings=True)
+                
+                # Calculate cosine similarities
+                similarities = []
+                for selected_emb in selected_embs:
+                    # Cosine similarity = dot product of normalized vectors
+                    try:
+                        import numpy as np
+                        sim = float(np.dot(candidate_emb[0], selected_emb))
+                    except:
+                        # Fallback to manual calculation
+                        sim = sum(a * b for a, b in zip(candidate_emb[0], selected_emb))
+                    similarities.append(sim)
+                max_sim_to_selected = max(similarities) if similarities else 0.0
+            
+            # MMR score: lambda * relevance - (1-lambda) * redundancy
+            mmr_score = lambda_param * sim_to_query - (1 - lambda_param) * max_sim_to_selected
+            mmr_scores.append((mmr_score, i, candidate))
+        
+        # Select candidate with highest MMR score
+        if mmr_scores:
+            _, best_idx, best_candidate = max(mmr_scores, key=lambda x: x[0])
+            selected.append(best_candidate)
+            remaining.remove(best_candidate)
+            # Remove corresponding embedding
+            remaining_embeddings = [emb for j, emb in enumerate(remaining_embeddings) if j != best_idx]
+        else:
+            break
+    
+    return selected

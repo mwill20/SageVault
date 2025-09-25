@@ -17,5 +17,5 @@
 | security |  |  | pass |  | tests/test_security_global.py::test_secure_text_redacts_and_flags | 0.00 |
 | security |  |  | pass |  | tests/test_security_global.py::test_secure_plan_flags_warning_and_sets_risk | 0.00 |
 | security |  |  | pass |  | tests/test_security_global.py::test_secure_plan_is_idempotent | 0.00 |
-| general |  |  | pass |  | tests/test_ui_smoke.py::test_streamlit_app_imports | 0.85 |
+| general |  |  | pass |  | tests/test_ui_smoke.py::test_streamlit_app_imports | 2.40 |
 | general |  |  | pass |  | tests/test_ui_smoke.py::test_extract_repo_signals_fields | 0.00 |

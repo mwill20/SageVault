@@ -1,14 +1,60 @@
-# GitHub GuideBot - RAG MVP
+<div align="center">
+  <img src="assets/sagevault-logo.png" alt="SageVault Logo" width="200"/>
+  <h1>🔍 SageVault - Intelligent Repository Explorer</h1>
+  <p><em>Multi-LLM RAG system for intelligent codebase exploration and analysis</em></p>
+</div>
 
-**Intelligent Document Analysis with Retrieval-Augmented Generation**
+## ✨ Core Features
+
+### **🤖 Multi-LLM Support**
+- **Groq**: Fast inference with Llama-3.1-8b-instant  
+- **OpenAI**: Premium responses with GPT-4o-mini
+- **Anthropic**: Advanced reasoning with Claude-3-5-sonnet
+- **Google**: Multimodal capabilities with Gemini-1.5-flash
+- **Flexible Configuration**: Easy provider switching in the UI
+
+### **📊 Privacy-First Analytics**
+- **Usage Insights**: Track indexing, questions, and file processing
+- **Zero PII**: No prompts, keys, URLs, or content stored
+- **Session-Only**: Data cleared on restart, no persistent tracking
+- **Full Transparency**: View all collected metrics in sidebar dashboard
+
+### **⚡ Performance Monitoring**
+- **Real-time Metrics**: Track latency and token usage per provider
+- **Cost Estimation**: Live cost estimates based on current pricing
+- **Performance Badges**: Compact display showing "Provider: 1.2s, ~1.3k↗/600↘, $0.002"
+- **Provider Comparison**: Compare speed, cost, and quality across LLMs
+
+### **📝 Session Export**
+- **Markdown Export**: One-click export of Q&A sessions with full context
+- **Source Citations**: Automatic GitHub links and similarity scores
+- **Reproducibility**: Complete session history for sharing and documentation
+- **Rich Formatting**: Professional markdown with performance metrics
+
+### **🧪 Quality Assurance**
+- **Evaluation Harness**: Precision@K testing with gold standard Q→source pairs
+- **Regression Prevention**: Automatic quality monitoring to catch performance drops
+- **Objective Metrics**: Data-driven assessment of retrieval accuracy
+- **Gold Standard Dataset**: Tested on FastAPI, Streamlit, and Requests repositories
+
+### **🔍 Smart Repository Analysis**
+- **Auto-Detection**: Intelligent analysis of project types (Python, Node.js, Docker, etc.)
+- **Framework Recognition**: Detects Django, React, FastAPI, Streamlit, and more
+- **Quickstart Guides**: Auto-generated setup instructions tailored to project type
+- **Zero Execution**: Safe analysis without running any codevault-logo.png" alt="SageVault Logo" width="400"/>
+</div>
+
+# SageVault - RAG MVP
+
+**Secure Knowledge, Unlocked.**
 
 Transform how you explore GitHub repositories and analyze documents with AI-powered question answering, multi-source indexing, and comprehensive security controls.
 
 ---
 
-## 🚀 What is GitHub GuideBot?
+## 🚀 What is SageVault?
 
-GitHub GuideBot is a powerful **Retrieval-Augmented Generation (RAG)** application that allows you to:
+SageVault is a powerful **Retrieval-Augmented Generation (RAG)** application that allows you to:
 
 - **📂 Analyze GitHub Repositories**: Index and query any public GitHub repository
 - **📄 Process Documents**: Upload and analyze PDF, DOCX, and text files  
@@ -57,19 +103,63 @@ GitHub GuideBot is a powerful **Retrieval-Augmented Generation (RAG)** applicati
 ### **Documents** (Upload Only)
 `PDF` `DOCX` - Full text extraction with error handling
 
-## 🚀 Quick Start
+## 🎬 Demo: See SageVault in Action
+
+### 📽️ Quick Demo Workflow
+
+> **🎬 Demo GIF Placeholder** - *Record and add a GIF showing the complete workflow below*
+
+![SageVault Demo Workflow](assets/demo-workflow.gif)
+*Coming Soon: Watch a 60-second demo showing the complete SageVault workflow*
+
+### 🔥 Try it Yourself - 3-Minute Walkthrough
+
+**Step 1: 🔗 Paste a Repository URL**
+```
+Try this popular repo: https://github.com/microsoft/vscode
+```
+
+**Step 2: ⚡ Index & Analyze**
+- Click "🔍 Index Repository" 
+- Watch SageVault fetch and process files
+- Review the included/excluded files summary
+
+**Step 3: 🤖 Ask Intelligent Questions**
+```
+Example questions to try:
+• "How do I build VS Code from source?"
+• "What are the main extension APIs?"
+• "How is the editor architecture organized?"
+```
+
+**Step 4: � Explore Sources Panel**
+- See exactly which files informed each answer
+- Click GitHub links to view source context
+- Understand how RAG retrieval works
+
+### 🎯 Interactive Demo Features
+
+| Feature | Try This | Expected Result |
+|---------|----------|----------------|
+| **Multi-LLM Support** | Switch between Groq/OpenAI/Anthropic/Google | Different response styles |
+| **Smart Security** | Try indexing a repo with executables | Security warnings with override option |
+| **Document Upload** | Upload a PDF + index a repo | Combined knowledge base querying |
+| **Configurable RAG** | Adjust chunk size/overlap | See impact on answer quality |
+| **Analytics Dashboard** | Check sidebar "📊 Session Analytics" | Privacy-first usage tracking |
+
+## �🚀 Quick Start
 
 ### Prerequisites
 - Python 3.10+ (tested up to 3.12)
-- API key for Groq or OpenAI
+- API key for Groq, OpenAI, Anthropic, or Google
 - Optional: GitHub Personal Access Token for higher rate limits
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/mwill20/github-guidebot.git
-cd github-guidebot
+git clone https://github.com/mwill20/sagevault.git
+cd sagevault
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -128,6 +218,13 @@ The app will open in your browser at `http://localhost:8501`
 #### **GitHub Integration**
 - **Personal Access Token**: Optional for 5000 requests/hour vs 60 requests/hour
 
+#### **📊 Analytics Dashboard**
+- **Session Insights**: View usage statistics in the sidebar
+- **Privacy Compliant**: Only aggregate counts and timestamps
+- **What's Tracked**: Questions asked, files processed, indexes built, session duration
+- **What's NOT Tracked**: Your questions, API keys, file contents, or any personal data
+- **Data Control**: Clear analytics anytime or view detailed privacy information
+
 ## 🛡️ Security Features
 
 ### **🔒 File Security**
@@ -167,9 +264,10 @@ For security professionals and advanced users:
 
 - **Frontend**: Streamlit for interactive web interface
 - **Vector Database**: ChromaDB 0.4.15 for similarity search
-- **Embeddings**: SentenceTransformers (all-MiniLM-L6-v2)
-- **LLM Providers**: Groq (Llama-3.1-8b-instant), OpenAI (GPT-4o-mini)
+- **Embeddings**: SentenceTransformers (all-MiniLM-L6-v2) with MMR re-ranking
+- **LLM Providers**: Groq, OpenAI, Anthropic, Google with unified interface
 - **Document Processing**: PyPDF2, python-docx for file extraction
+- **Analytics**: Privacy-first session tracking with zero PII collection
 
 ## 🧪 Testing
 
@@ -194,10 +292,11 @@ pytest -v
 
 ### **Project Structure**
 ```
-github-guidebot/
+sagevault/
 ├── streamlit_app_clean.py     # Main RAG application  
 ├── simple_rag.py             # Core RAG utilities
 ├── requirements_clean.txt    # Production dependencies
+├── assets/                   # Logo and branding assets
 ├── app/                      # Legacy full-featured version
 ├── tests/                    # Test suite
 ├── security.md              # Security documentation
@@ -269,4 +368,4 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Built with ❤️ for developers, researchers, and security professionals who need intelligent document analysis.**
+**Built with ❤️ for developers, researchers, and security professionals who need secure, intelligent document analysis.**

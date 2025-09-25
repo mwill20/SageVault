@@ -6,9 +6,16 @@ from typing import Dict, List, Tuple
 import os
 import sys
 import io
+import pandas as pd
 
 # Import our clean RAG utilities
 from simple_rag import create_vector_store, search_vector_store
+
+# Import privacy-first analytics
+from analytics import (
+    track_index_built, track_question_asked, track_files_processed, 
+    track_security_override, track_document_upload, get_session_summary
+)
 
 # Document processing imports
 try:
@@ -89,9 +96,12 @@ def parse_github_url(url: str) -> Tuple[str, str]:
     
     return parts[0], parts[1]
 
-def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token: str = None) -> Dict[str, str]:
-    """Fetch text files from GitHub repository"""
+def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token: str = None) -> tuple[Dict[str, str], List[Dict]]:
+    """Fetch text files from GitHub repository
+    Returns: (included_files_dict, excluded_files_list)
+    """
     files = {}
+    excluded_files = []
     
     # Set up headers with authentication if token provided
     headers = {}
@@ -108,7 +118,35 @@ def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token
         response = requests.get(tree_url, headers=headers, timeout=30)
     
     if response.status_code != 200:
-        raise Exception(f"Could not access repository: {response.status_code}")
+        # Enhanced error messages with actionable guidance
+        if response.status_code == 404:
+            raise Exception(f"❌ Repository not found (404). Please check:\n"
+                          f"• Repository URL is correct: {owner}/{repo}\n"
+                          f"• Repository exists and is public\n"
+                          f"• Repository has a 'main' or 'master' branch\n"
+                          f"• No typos in owner/repository name")
+        elif response.status_code == 403:
+            rate_limit_info = ""
+            if 'X-RateLimit-Remaining' in response.headers:
+                remaining = response.headers.get('X-RateLimit-Remaining', '0')
+                reset_time = response.headers.get('X-RateLimit-Reset', '')
+                if reset_time:
+                    import datetime
+                    reset_dt = datetime.datetime.fromtimestamp(int(reset_time))
+                    reset_str = reset_dt.strftime('%H:%M:%S')
+                    rate_limit_info = f"\n• Rate limit resets at: {reset_str}"
+            
+            raise Exception(f"🚫 GitHub API rate limit exceeded (403). Solutions:\n"
+                          f"• Add a GitHub Personal Access Token for 5000 requests/hour\n"
+                          f"• Wait for rate limit to reset{rate_limit_info}\n"
+                          f"• Current limit: {response.headers.get('X-RateLimit-Remaining', 'unknown')} remaining")
+        elif response.status_code == 401:
+            raise Exception(f"🔐 Authentication failed (401). Please check:\n"
+                          f"• GitHub token is valid and not expired\n"
+                          f"• Token has necessary permissions for this repository")
+        else:
+            raise Exception(f"❌ GitHub API error ({response.status_code}): {response.reason}\n"
+                          f"Please try again or check repository accessibility.")
     
     tree_data = response.json()
     
@@ -156,8 +194,14 @@ def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token
         path = item['path']
         filename = path.lower()
         
-        # Security check: Skip blocked file types
+        # Security check: Track blocked file types
         if any(filename.endswith(ext) for ext in blocked_extensions):
+            matching_ext = next(ext for ext in blocked_extensions if filename.endswith(ext))
+            excluded_files.append({
+                'file_path': path,
+                'reason': f'Blocked file type ({matching_ext})',
+                'category': 'Security - Binary/Executable'
+            })
             continue
             
         # Check if it's a text file by extension or by common filename
@@ -167,6 +211,11 @@ def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token
         )
         
         if not is_text_file:
+            excluded_files.append({
+                'file_path': path,
+                'reason': 'Unknown/unsupported file type',
+                'category': 'File Type - Not text/code'
+            })
             continue
             
         # Fetch file content
@@ -178,18 +227,48 @@ def fetch_github_files(owner: str, repo: str, max_files: int = 100, github_token
                 raw_url = f"https://raw.githubusercontent.com/{owner}/{repo}/master/{path}"
                 file_response = requests.get(raw_url, headers=headers if github_token else {}, timeout=15)
             
-            if file_response.status_code == 200 and len(file_response.content) < 100000:  # Max 100KB
+            if file_response.status_code == 200:
+                if len(file_response.content) >= 100000:  # Max 100KB
+                    excluded_files.append({
+                        'file_path': path,
+                        'reason': f'File too large ({len(file_response.content):,} bytes)',
+                        'category': 'Size Limit - Over 100KB'
+                    })
+                    continue
+                    
                 try:
                     content = file_response.content.decode('utf-8', errors='ignore')
                     if content.strip():
                         files[path] = content
                         count += 1
-                except:
+                    else:
+                        excluded_files.append({
+                            'file_path': path,
+                            'reason': 'Empty file',
+                            'category': 'Content - Empty'
+                        })
+                except Exception as decode_error:
+                    excluded_files.append({
+                        'file_path': path,
+                        'reason': f'Failed to decode as text: {str(decode_error)}',
+                        'category': 'Encoding - Binary content'
+                    })
                     continue
-        except:
+            else:
+                excluded_files.append({
+                    'file_path': path,
+                    'reason': f'HTTP {file_response.status_code}: {file_response.reason}',
+                    'category': 'Access - Download failed'
+                })
+        except Exception as fetch_error:
+            excluded_files.append({
+                'file_path': path,
+                'reason': f'Network error: {str(fetch_error)}',
+                'category': 'Access - Network issue'
+            })
             continue
     
-    return files
+    return files, excluded_files
 
 def call_llm(provider: str, api_key: str, prompt: str) -> str:
     """Call LLM with the given prompt"""
@@ -224,6 +303,36 @@ def call_llm(provider: str, api_key: str, prompt: str) -> str:
         except Exception as e:
             return f"OpenAI API error: {str(e)}"
     
+    elif provider == "Anthropic":
+        try:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            response = client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=500,
+                temperature=0.2,
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.content[0].text
+        except Exception as e:
+            return f"Anthropic API error: {str(e)}"
+    
+    elif provider == "Google":
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(
+                    max_output_tokens=500,
+                    temperature=0.2,
+                )
+            )
+            return response.text
+        except Exception as e:
+            return f"Google Gemini API error: {str(e)}"
+    
     return "Unknown provider selected."
 
 # Main UI
@@ -234,7 +343,7 @@ st.markdown("Ask questions about any public GitHub repository!")
 with st.sidebar:
     st.header("⚙️ Settings")
     
-    provider = st.selectbox("LLM Provider", ["None", "Groq", "OpenAI"])
+    provider = st.selectbox("LLM Provider", ["None", "Groq", "OpenAI", "Anthropic", "Google"])
     api_key = st.text_input("API Key", type="password", 
                            help="Your API key (stored only for this session)")
     
@@ -336,6 +445,9 @@ with st.sidebar:
                                 st.stop()
                             else:
                                 st.success("⚠️ Security override accepted for uploads...")
+                                # Track upload security override
+                                max_risk = max([rf['risk_level'] for rf in risky_files], default='LOW')
+                                track_security_override(risk_level=max_risk)
                     
                     # Convert to format expected by create_vector_store (Dict[str, str])
                     doc_dict = {}
@@ -346,6 +458,16 @@ with st.sidebar:
                     vector_store = create_vector_store(doc_dict, "uploaded_docs", chunk_size, overlap_percent)
                     st.session_state.vector_store = vector_store
                     st.session_state.documents = documents
+                    
+                    # Track document upload analytics
+                    file_names = [f.name for f in uploaded_files]
+                    track_document_upload(file_count=len(documents), file_types=file_names)
+                    track_index_built(
+                        file_count=len(documents),
+                        file_types=file_names, 
+                        source_type="upload"
+                    )
+                    
                     st.success(f"🎉 Indexed {len(documents)} documents!")
     
     st.markdown("---")
@@ -353,6 +475,33 @@ with st.sidebar:
     st.markdown("1. Paste a GitHub repo URL OR upload documents")
     st.markdown("2. Click the respective Index button")
     st.markdown("3. Ask questions about the content")
+    
+    # Analytics Dashboard (collapsible)  
+    with st.expander("📊 Session Analytics", expanded=False):
+        session_stats = get_session_summary()
+        
+        st.markdown("**Session Activity:**")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.metric("Questions Asked", session_stats.get('questions_asked', 0))
+            st.metric("Indexes Built", session_stats.get('indexes_built', 0))
+        
+        with col2:
+            st.metric("Files Processed", session_stats.get('total_files_processed', 0))
+            st.metric("Session Duration", f"{session_stats.get('session_duration_minutes', 0)} min")
+        
+        if session_stats.get('security_overrides', 0) > 0:
+            st.warning(f"🛡️ Security Overrides: {session_stats['security_overrides']}")
+        
+        # Privacy info
+        st.markdown("---")
+        st.markdown("**Privacy:** Only counts & timestamps collected. No prompts, keys, or content stored.")
+        
+        if st.button("Clear Analytics", help="Clear all session analytics data"):
+            from analytics import clear_analytics
+            clear_analytics()
+            st.rerun()
 
 # Main content
 col1, col2 = st.columns([2, 1])
@@ -381,12 +530,18 @@ if "documents" not in st.session_state:
 # Index repository
 if index_button and repo_url:
     try:
-        with st.spinner("Analyzing repository..."):
+        with st.spinner("🔍 Analyzing repository..."):
             # Parse URL
             owner, repo = parse_github_url(repo_url)
             
+            # Update progress
+            progress_placeholder = st.empty()
+            progress_placeholder.info(f"📡 Fetching files from {owner}/{repo}...")
+            
             # Fetch files
-            files = fetch_github_files(owner, repo, github_token=github_token)
+            files, excluded_files = fetch_github_files(owner, repo, github_token=github_token)
+            
+            progress_placeholder.info(f"⚡ Processing {len(files)} files for indexing...")
             
             if not files:
                 st.error("No suitable text files found in repository")
@@ -429,6 +584,10 @@ if index_button and repo_url:
                             st.stop()
                         else:
                             st.success("⚠️ Security override accepted. Proceeding with analysis...")
+                            # Track security override usage
+                            max_risk = max([rf['risk_level'] for rf in risky_files], default='LOW')
+                            track_security_override(risk_level=max_risk)
+                            
                             # Remove risky files from processing
                             risky_file_paths = {rf['file_path'] for rf in risky_files}
                             safe_files = {k: v for k, v in files.items() if k not in risky_file_paths}
@@ -439,11 +598,22 @@ if index_button and repo_url:
                                 st.stop()
                 
                 # Create vector store
+                progress_placeholder.info(f"🧠 Creating embeddings and vector store...")
                 collection = create_vector_store(files, f"{owner}_{repo}", chunk_size, overlap_percent)
+                progress_placeholder.empty()  # Clear progress messages
                 
                 # Store in session
                 st.session_state.collection = collection
                 st.session_state.repo_info = {"owner": owner, "repo": repo, "files": len(files)}
+                st.session_state.indexed_files = files  # Store for context extraction
+                
+                # Track analytics - repository indexing completed
+                file_extensions = [f.split('.')[-1] if '.' in f else 'no_ext' for f in files.keys()]
+                track_index_built(
+                    file_count=len(files),
+                    file_types=file_extensions,
+                    source_type="repository"
+                )
                 
                 # Show what files were indexed
                 with st.expander("📁 Files Indexed", expanded=False):
@@ -456,6 +626,51 @@ if index_button and repo_url:
                             if remaining > 0:
                                 st.write(f"... and {remaining} more files")
                             break
+                
+                # Track file processing analytics
+                if excluded_files:
+                    risk_levels = [ef.get('category', 'Unknown') for ef in excluded_files]
+                    track_files_processed(
+                        included_count=len(files),
+                        excluded_count=len(excluded_files),
+                        risk_levels=risk_levels
+                    )
+                
+                # Show excluded files if any
+                if excluded_files:
+                    with st.expander(f"🚫 Files Excluded ({len(excluded_files)})", expanded=False):
+                        st.write("**Files that were not processed and why:**")
+                        
+                        # Group by category for better organization
+                        if excluded_files:
+                            df = pd.DataFrame(excluded_files)
+                            
+                            # Create category groups
+                            for category in df['category'].unique():
+                                category_files = df[df['category'] == category]
+                                
+                                st.markdown(f"**{category}** ({len(category_files)} files)")
+                                
+                                # Display as a neat table
+                                display_data = []
+                                for _, row in category_files.iterrows():
+                                    display_data.append({
+                                        'File': f"`{row['file_path']}`",
+                                        'Reason': row['reason']
+                                    })
+                                
+                                if display_data:
+                                    display_df = pd.DataFrame(display_data)
+                                    st.dataframe(display_df, use_container_width=True, hide_index=True)
+                                
+                                st.markdown("")  # Add spacing
+                        
+                        # Add override options for certain types
+                        security_categories = [cat for cat in df['category'].unique() if 'Security' in cat or 'Size Limit' in cat]
+                        if security_categories:
+                            st.markdown("---")
+                            st.markdown("**⚠️ Advanced Options:**")
+                            st.info("Future versions may allow security professionals to override certain exclusions with additional safety measures.")
                 
                 st.success(f"✅ Successfully indexed {len(files)} files from {owner}/{repo}")
                 
@@ -479,7 +694,24 @@ if st.session_state.collection is not None or st.session_state.vector_store is n
             
             # Search GitHub repository if indexed
             if st.session_state.collection is not None:
-                repo_results = search_vector_store(st.session_state.collection, question, k=5)
+                # Extract top-level directories for context enhancement
+                top_level_dirs = []
+                if hasattr(st.session_state, 'indexed_files'):
+                    # Get unique top-level directories
+                    dirs = set()
+                    for file_path in st.session_state.indexed_files.keys():
+                        parts = file_path.split('/')
+                        if len(parts) > 1:
+                            dirs.add(parts[0])
+                    top_level_dirs = list(dirs)
+                
+                repo_results = search_vector_store(
+                    st.session_state.collection, 
+                    question, 
+                    k=5,
+                    repo_info=st.session_state.get('repo_info'),
+                    top_level_dirs=top_level_dirs
+                )
                 for result in repo_results:
                     results.append({
                         'file_path': result['file_path'],
@@ -530,6 +762,9 @@ Please provide a clear, helpful answer based only on the provided context. If yo
                         st.markdown("### 🤖 AI Answer")
                         st.markdown(answer)
                         st.markdown("---")  # Separator between answer and sources
+                        
+                        # Track question analytics
+                        track_question_asked(provider_type=provider, response_generated=True)
                 else:
                     st.info("💡 Set up an LLM provider in the sidebar to get AI-generated answers!")
                     st.markdown("---")  # Separator
