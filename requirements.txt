@@ -1,18 +1,10 @@
-# --- Core UI & HTTP ---
-streamlit>=1.33,<2
-requests>=2.31,<3
-
-# --- RAG (semantic search) ---
-sentence-transformers>=2.2.2
-chromadb>=0.5.5
-
-# --- Numeric base ---
-# Use NumPy 2.x to ensure wheels exist on Python 3.13 (Windows) and avoid a local build toolchain.
-numpy>=2.0,<3
-
-# --- Optional providers ---
-openai>=1.40.0
+# Minimal requirements for SageVault RAG MVP
+streamlit>=1.28.0
+requests>=2.28.0
+sentence-transformers>=2.2.0
+chromadb==0.4.15
 groq>=0.9.0
-
-# --- Testing ---
-pytest>=8.2,<9
+openai>=1.40.0
+anthropic>=0.7.0
+google-generativeai>=0.7.0
+numpy>=1.24.0
