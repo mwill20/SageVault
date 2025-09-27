@@ -4,6 +4,9 @@
 print("Testing clean RAG implementation...")
 
 try:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from simple_rag import create_vector_store, search_vector_store
     print("✅ Imports successful")
     
