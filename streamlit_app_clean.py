@@ -189,7 +189,7 @@ def call_llm(provider: str, api_key: str, prompt: str) -> str:
 
 # --- Streamlit App ---
 
-st.set_page_config(page_title="SageVault", layout="wide", page_icon="🔍")
+st.set_page_config(page_title="SageVault", layout="wide", page_icon="🔍", initial_sidebar_state="expanded")
 
 # --- Session State Initialization ---
 if 'unified_collection' not in st.session_state:
@@ -224,7 +224,29 @@ with st.sidebar:
     overlap_percent = st.slider("Chunk Overlap (%)", 0, 50, 10, 5, help="Percentage overlap between chunks.")
 
 # --- Main App Layout ---
-st.title("🔍 SageVault")
+# Logo positioned on the left where title was with blue highlight
+try:
+    # Add custom CSS for image highlighting
+    st.markdown("""
+    <style>
+    .logo-container img {
+        border: 3px solid #1f77b4 !important;
+        border-radius: 15px !important;
+        padding: 15px !important;
+        background: linear-gradient(135deg, rgba(31, 119, 180, 0.1), rgba(31, 119, 180, 0.05)) !important;
+        box-shadow: 0 4px 12px rgba(31, 119, 180, 0.3) !important;
+        margin-bottom: 20px !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
+    # Use container with custom class
+    with st.container():
+        st.markdown('<div class="logo-container">', unsafe_allow_html=True)
+        st.image("assets/sagevault-logo.png", width=400)  # Large logo on the left
+        st.markdown('</div>', unsafe_allow_html=True)
+except:
+    st.title("🔍 SageVault")  # Fallback if logo fails
 
 left_column, right_column = st.columns([1, 1.5])
 
