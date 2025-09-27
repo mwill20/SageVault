@@ -11,7 +11,7 @@ import pandas as pd
 # Import utilities
 from simple_rag import create_or_update_unified_vector_store, add_to_vector_store, search_vector_store
 from analytics import track_index_built, track_question_asked, track_files_processed, track_security_override, track_document_upload, get_session_summary, clear_analytics
-from repo_analyzer import repo_analyzer
+from utilities.repo_analyzer import repo_analyzer
 
 # --- Utility Functions from the original file ---
 
