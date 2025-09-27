@@ -236,7 +236,7 @@ with left_column:
 
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("🔍 Index All", type="primary", use_container_width=True):
+        if st.button("🔍 Index All", type="primary"):
             st.session_state.repo_url = repo_url_input
             with st.spinner("Indexing all sources... Please wait."):
                 # Clear previous index
@@ -300,7 +300,7 @@ with left_column:
                     st.warning("No documents found to index.")
 
     with col2:
-        if st.button("🗑️ Clear Index", use_container_width=True):
+        if st.button("🗑️ Clear Index"):
             st.session_state.unified_collection = None
             st.session_state.messages = []
             st.session_state.sources = []
@@ -324,11 +324,11 @@ with left_column:
         if st.session_state.indexed_files:
             with st.expander(f"**{len(st.session_state.indexed_files)}** files were indexed"):
                 df = pd.DataFrame(st.session_state.indexed_files)
-                st.dataframe(df, use_container_width=True, hide_index=True)
+                st.dataframe(df, width='stretch', hide_index=True)
     if st.session_state.excluded_files:
         with st.expander(f"**{len(st.session_state.excluded_files)}** files were excluded"):
             df = pd.DataFrame(st.session_state.excluded_files).head(20)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
 
 # --- Right Column: Chat Interface ---
 with right_column:
