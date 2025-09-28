@@ -401,14 +401,26 @@ if st.session_state.sources:
     for i, source in enumerate(st.session_state.sources):
         file_path = source['file_path']
         similarity = source.get('similarity', 0.0)
+        source_type = source.get('source_type', 'unknown')
         
+        # Determine display name and icon based on source type
+        if file_path.startswith('uploaded:'):
+            clean_filename = file_path.replace('uploaded:', '')
+            display_name = f"📄 Download: {clean_filename}"
+            source_label = "Download"
+        else:
+            display_name = f"🔍 Repo: SageVault/{file_path}"
+            source_label = "Repository"
+            
         url = source.get('github_url')
-        if not url and st.session_state.repo_url:
+        if not url and st.session_state.repo_url and not file_path.startswith('uploaded:'):
              url = f"https://github.com/{'/'.join(parse_github_url(st.session_state.repo_url))}/blob/main/{file_path}"
         
-        with st.expander(f"**{i+1}. {file_path}** (Similarity: {similarity:.2f})"):
+        with st.expander(f"**{i+1}. {display_name}** (Similarity: {similarity:.2f})"):
             if url:
                 st.markdown(f"[View on GitHub]({url})")
+            elif file_path.startswith('uploaded:'):
+                st.markdown(f"📎 **Source Type:** Uploaded Document")
             st.code(source['text'], language='text')
 else:
     st.info("Source details will appear here after you ask a question.")
