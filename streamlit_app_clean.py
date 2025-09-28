@@ -299,7 +299,17 @@ with left_column:
                 if all_docs:
                     try:
                         st.session_state.unified_collection = create_or_update_unified_vector_store("unified_sagevault")
-                        st.session_state.unified_collection = add_to_vector_store(st.session_state.unified_collection, all_docs, "unified", {}, chunk_size, overlap_percent)
+                        # Pass repo name for dynamic source tagging
+                        repo_name = "Repository"
+                        if st.session_state.repo_url:
+                            try:
+                                owner, repo = parse_github_url(st.session_state.repo_url)
+                                repo_name = repo
+                            except:
+                                repo_name = "Repository"
+                        
+                        metadata = {"repo_name": repo_name}
+                        st.session_state.unified_collection = add_to_vector_store(st.session_state.unified_collection, all_docs, "unified", metadata, chunk_size, overlap_percent)
                         st.session_state.indexed_files_count = len(all_docs)
                         
                         # Track indexed files with details
@@ -409,7 +419,15 @@ if st.session_state.sources:
             display_name = f"📄 Download: {clean_filename}"
             source_label = "Download"
         else:
-            display_name = f"🔍 Repo: SageVault/{file_path}"
+            # Get repo name from session state if available
+            repo_name = "Repository"
+            if st.session_state.repo_url:
+                try:
+                    owner, repo = parse_github_url(st.session_state.repo_url)
+                    repo_name = repo
+                except:
+                    repo_name = "Repository"
+            display_name = f"🔍 Repo: {repo_name}/{file_path}"
             source_label = "Repository"
             
         url = source.get('github_url')

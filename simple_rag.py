@@ -447,7 +447,9 @@ def add_to_vector_store(collection: object, documents: Dict[str, str], source_ty
                     tagged_chunk = f"[Source: Download - {clean_filename}]\n\n{chunk}"
                 else:
                     actual_source = "Repo"
-                    tagged_chunk = f"[Source: Repo - SageVault/{file_path}]\n\n{chunk}"
+                    # Extract repo name from metadata if available, otherwise use generic
+                    repo_name = metadata.get('repo_name', 'Repository')
+                    tagged_chunk = f"[Source: Repo - {repo_name}/{file_path}]\n\n{chunk}"
             else:
                 actual_source = source_type
                 tagged_chunk = f"[Source: {source_type} - {file_path}]\n\n{chunk}"
