@@ -13,6 +13,10 @@ from simple_rag import create_or_update_unified_vector_store, add_to_vector_stor
 from analytics import track_index_built, track_question_asked, track_files_processed, track_security_override, track_document_upload, get_session_summary, clear_analytics
 from utilities.repo_analyzer import repo_analyzer
 
+# Security integration (automatic protection)
+from app.secure_streamlit_integration import SecurityMiddleware, secure_rag_search, display_security_info
+from app.secure_prompts import SECURE_SYSTEM_PROMPT
+
 # --- Utility Functions from the original file ---
 
 def extract_text_from_pdf(file_bytes: bytes) -> str:
@@ -222,6 +226,12 @@ with st.sidebar:
     st.subheader("🔧 RAG Settings")
     chunk_size = st.slider("Chunk Size", 200, 1500, 500, 50, help="Size of text chunks for processing.")
     overlap_percent = st.slider("Chunk Overlap (%)", 0, 50, 10, 5, help="Percentage overlap between chunks.")
+    st.markdown("---")
+    st.subheader("🔒 Security Status")
+    st.success("✅ Injection Protection: Active")
+    st.success("✅ Secret Redaction: Active") 
+    st.success("✅ Command Safety: Active")
+    st.info("🛡️ System automatically protected")
 
 # --- Main App Layout ---
 # Logo positioned on the left where title was with blue highlight
@@ -288,7 +298,14 @@ with left_column:
                         for uploaded_file in uploaded_files:
                             filename, text = extract_text_from_file(uploaded_file)
                             if text and not text.startswith("Error"):
-                                all_docs[f"uploaded:{filename}"] = text
+                                # Automatic security: redact any secrets in uploaded documents
+                                from app.security_utils import redact_secrets
+                                secure_text = redact_secrets(text)
+                                all_docs[f"uploaded:{filename}"] = secure_text
+                                
+                                # Log if secrets were redacted
+                                if "[REDACTED]" in secure_text:
+                                    st.info(f"🔒 Security: Redacted potential secrets from {filename}")
                             else:
                                 st.session_state.excluded_files.append({'file_path': filename, 'reason': 'Failed to extract text'})
                         st.success(f"Processed {len(uploaded_files)} uploaded documents.")
@@ -382,25 +399,53 @@ with right_column:
 
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
-                    # 1. Search for relevant sources
-                    search_results = search_vector_store(st.session_state.unified_collection, prompt, k=5)
-                    st.session_state.sources = search_results # Update sources for display
+                    # 1. Search for relevant sources (with automatic security protection)
+                    search_result = secure_rag_search(
+                        lambda q, collection, k: search_vector_store(collection, q, k=k),
+                        prompt, st.session_state.unified_collection, k=5
+                    )
                     
-                    # 2. Construct prompt for LLM
-                    context = "\n\n".join([f"Source: {r['file_path']}\n\n{r['text']}" for r in search_results])
-                    llm_prompt = f"""You are an expert code and document analysis assistant. Based on the following context, answer the user's question concisely.
-                    
-                    Context:
-                    {context}
-                    
-                    Question: {prompt}
-                    
-                    Answer:"""
+                    # Handle security automatically
+                    if "error" in search_result:
+                        st.error(f"🔒 Security: {search_result['error']}")
+                        st.session_state.messages.append({"role": "assistant", "content": "Query blocked for security reasons."})
+                    else:
+                        search_results = search_result["results"]
+                        # Show security warnings if any (automatic)
+                        for warning in search_result.get("warnings", []):
+                            st.warning(f"🔒 Security Notice: {warning}")
+                        
+                        st.session_state.sources = search_results # Update sources for display
+                        
+                        # 2. Construct secure prompt for LLM (automatic security)
+                        # Handle different possible key formats from search results
+                        context_parts = []
+                        for r in search_results:
+                            # Check which key exists for the file path
+                            file_path = r.get('file_path') or r.get('path') or r.get('source') or 'Unknown'
+                            text = r.get('text', '')
+                            context_parts.append(f"Source: {file_path}\n\n{text}")
+                        context = "\n\n".join(context_parts)
+                        llm_prompt = f"""{SECURE_SYSTEM_PROMPT}
+                        
+                        Context:
+                        {context}
+                        
+                        Question: {prompt}
+                        
+                        Answer:"""
 
-                    # 3. Call LLM
-                    response = call_llm(provider, api_key, llm_prompt)
-                    st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                        # 3. Call LLM and automatically secure response
+                        response = call_llm(provider, api_key, llm_prompt)
+                        
+                        # Automatic security processing (transparent to user)
+                        secure_resp = SecurityMiddleware.secure_response(response, search_results)
+                        st.markdown(secure_resp["content"])
+                        
+                        # Show security info if needed (automatic)
+                        display_security_info(secure_resp)
+                        
+                        st.session_state.messages.append({"role": "assistant", "content": secure_resp["content"]})
                     track_question_asked(provider_type=provider)
                     st.rerun() # Rerun to update the source display below
 
@@ -409,7 +454,8 @@ st.markdown("---")
 st.subheader("📚 Sources")
 if st.session_state.sources:
     for i, source in enumerate(st.session_state.sources):
-        file_path = source['file_path']
+        # Handle different possible key formats from search results
+        file_path = source.get('file_path') or source.get('path') or source.get('source') or 'Unknown'
         similarity = source.get('similarity', 0.0)
         source_type = source.get('source_type', 'unknown')
         

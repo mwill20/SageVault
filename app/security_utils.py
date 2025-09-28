@@ -23,18 +23,23 @@ _DANGEROUS = (
     "git push --force",
     "rm -rf",
     "curl | bash",
+    "curl | sh", 
     "chmod 777",
+    "| bash",
+    "| sh",
 )
 
 # Injection heuristic patterns (compiled case-insensitive)
 INJECTION_PATTERNS = [
-    r"ignore\s+(all|any|previous)\s+(instructions|context)",
+    r"ignore\s+(all|any|previous|above)\s+(instructions|context|prompt)",
     r"reveal\s+system\s+prompt",
     r"\bas\s*system\b",
     r"escalate\s+privileges",
-    r"\brm\s+-rf\s+/",
-    r"curl\s+[^|]+\|\s*sh",
+    r"\brm\s+-rf\s+/?",
+    r"curl\s+[^|]+\|\s*(sh|bash)",
     r"disable\s+\w*\s*safety",
+    r"tell\s+me\s+secrets?",
+    r"show\s+(all|me)\s+(secrets?|keys?|credentials?)",
 ]
 INJECTION_REGEXES = [re.compile(p, re.I) for p in INJECTION_PATTERNS]
 
