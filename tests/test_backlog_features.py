@@ -6,8 +6,8 @@ Performance monitoring and session export functionality validation
 import time
 import tempfile
 import os
-from performance_monitor import PerformanceMonitor, ProviderMetrics, track_llm_request
-from session_exporter import SessionExporter, CitedSource, QASession
+from monitoring.performance_monitor import PerformanceMonitor, ProviderMetrics, track_llm_request
+from utilities.session_exporter import SessionExporter, CitedSource, QASession
 
 def test_performance_monitoring():
     """Test the performance monitoring system"""

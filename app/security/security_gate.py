@@ -1,0 +1,3 @@
+# ...existing code...
+[Full original code from app/security_gate.py]
+[full content from original app/security_gate.py]

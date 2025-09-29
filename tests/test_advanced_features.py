@@ -2,11 +2,14 @@
 🧪 Test Suite for Advanced Features
 Evaluation harness and repository type detection validation
 """
+import sys
+sys.path.append('utilities')
+sys.path.append('monitoring')
 
 import json
 import tempfile
-from eval_harness import EvaluationHarness, GoldStandardPair, EvalResult
-from repo_analyzer import RepositoryAnalyzer, ProjectType, QuickstartGuide
+from utilities.eval_harness import EvaluationHarness, GoldStandardPair, EvalResult
+from utilities.repo_analyzer import RepositoryAnalyzer, ProjectType, QuickstartGuide
 
 def test_evaluation_harness():
     """Test the evaluation harness functionality"""
