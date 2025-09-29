@@ -313,6 +313,7 @@ with left_column:
                         st.error(f"Upload Error: {e}")
 
                 # 3. Create unified vector store
+
                 if all_docs:
                     try:
                         st.session_state.unified_collection = create_or_update_unified_vector_store("unified_sagevault")
@@ -322,13 +323,11 @@ with left_column:
                             try:
                                 owner, repo = parse_github_url(st.session_state.repo_url)
                                 repo_name = repo
-                            except:
+                            except Exception:
                                 repo_name = "Repository"
-                        
                         metadata = {"repo_name": repo_name}
                         st.session_state.unified_collection = add_to_vector_store(st.session_state.unified_collection, all_docs, "unified", metadata, chunk_size, overlap_percent)
                         st.session_state.indexed_files_count = len(all_docs)
-                        
                         # Track indexed files with details
                         st.session_state.indexed_files = []
                         for file_path, content in all_docs.items():
@@ -340,7 +339,6 @@ with left_column:
                                 'content_length': len(content),
                                 'chunks_estimated': (len(content) // chunk_size) + 1
                             })
-                        
                         track_index_built(file_count=len(all_docs), source_type="unified")
                         st.success(f"✅ Indexing complete! {st.session_state.indexed_files_count} total documents indexed.")
                     except Exception as e:
@@ -449,23 +447,32 @@ with right_column:
                     track_question_asked(provider_type=provider)
                     st.rerun() # Rerun to update the source display below
 
+
 # --- Full-Width Sections Below ---
 st.markdown("---")
 st.subheader("📚 Sources")
+st.markdown("""
+> **About Similarity Scores & Provenance:**
+> - *Similarity Score* measures how closely each source matches your question (range: 0.00–1.00; higher is more relevant).
+> - *Provenance* indicates where the information came from (e.g., Repo, Download) for full transparency.
+> - Downloaded documents are always shown as 📄 Download: [filename]. Repository files are shown as 🔍 Repo: [repo]/[filename].
+> - For best results, refer to uploaded files as 'Download' in your questions.
+""")
 if st.session_state.sources:
-    for i, source in enumerate(st.session_state.sources):
-        # Handle different possible key formats from search results
+    # Group sources: downloads first, then repo
+    download_sources = [s for s in st.session_state.sources if (s.get('file_path') or s.get('path') or '').startswith('uploaded:')]
+    repo_sources = [s for s in st.session_state.sources if not (s.get('file_path') or s.get('path') or '').startswith('uploaded:')]
+    all_sources = download_sources + repo_sources
+    for i, source in enumerate(all_sources):
         file_path = source.get('file_path') or source.get('path') or source.get('source') or 'Unknown'
         similarity = source.get('similarity', 0.0)
         source_type = source.get('source_type', 'unknown')
-        
-        # Determine display name and icon based on source type
+        provenance_chip = f"Provenance: Download" if file_path.startswith('uploaded:') else f"Provenance: Repo"
+        # Display name and icon
         if file_path.startswith('uploaded:'):
             clean_filename = file_path.replace('uploaded:', '')
             display_name = f"📄 Download: {clean_filename}"
-            source_label = "Download"
         else:
-            # Get repo name from session state if available
             repo_name = "Repository"
             if st.session_state.repo_url:
                 try:
@@ -474,13 +481,11 @@ if st.session_state.sources:
                 except:
                     repo_name = "Repository"
             display_name = f"🔍 Repo: {repo_name}/{file_path}"
-            source_label = "Repository"
-            
         url = source.get('github_url')
         if not url and st.session_state.repo_url and not file_path.startswith('uploaded:'):
-             url = f"https://github.com/{'/'.join(parse_github_url(st.session_state.repo_url))}/blob/main/{file_path}"
-        
+            url = f"https://github.com/{'/'.join(parse_github_url(st.session_state.repo_url))}/blob/main/{file_path}"
         with st.expander(f"**{i+1}. {display_name}** (Similarity: {similarity:.2f})"):
+            st.markdown(f"`{provenance_chip}`")
             if url:
                 st.markdown(f"[View on GitHub]({url})")
             elif file_path.startswith('uploaded:'):
