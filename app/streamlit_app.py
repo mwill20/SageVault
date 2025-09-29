@@ -5,9 +5,9 @@ from typing import List, Dict, Tuple
 
 # --- Security & Memory (reuse existing modules) ---
 try:
-    from .security_utils import penalize_suspicious, redact_secrets
+    from .security.security_utils import penalize_suspicious, redact_secrets
 except ImportError:
-    from security_utils import penalize_suspicious, redact_secrets
+    from app.security.security_utils import penalize_suspicious, redact_secrets
 try:
     from .memory_orchestrator import update_ledger
 except ImportError:

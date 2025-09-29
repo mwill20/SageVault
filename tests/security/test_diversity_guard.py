@@ -1,9 +1,9 @@
 import pytest
 
 try:
-    from app.security_utils import diversity_guard
+    from app.security.security_utils import diversity_guard
 except ImportError:
-    from security_utils import diversity_guard
+    from app.security.security_utils import diversity_guard
 
 def test_diversity_guard_limits_duplicates():
     items = [{"path": "a.py"}, {"path": "a.py"}, {"path": "b.py"}, {"path": "a.py"}]

@@ -14,8 +14,8 @@ from analytics import track_index_built, track_question_asked, track_files_proce
 from utilities.repo_analyzer import repo_analyzer
 
 # Security integration (automatic protection)
-from app.secure_streamlit_integration import SecurityMiddleware, secure_rag_search, display_security_info
-from app.secure_prompts import SECURE_SYSTEM_PROMPT
+from app.security.secure_streamlit_integration import SecurityMiddleware, secure_rag_search, display_security_info
+from app.security.secure_prompts import SECURE_SYSTEM_PROMPT
 
 # --- Utility Functions from the original file ---
 
@@ -299,7 +299,7 @@ with left_column:
                             filename, text = extract_text_from_file(uploaded_file)
                             if text and not text.startswith("Error"):
                                 # Automatic security: redact any secrets in uploaded documents
-                                from app.security_utils import redact_secrets
+                                from app.security.security_utils import redact_secrets
                                 secure_text = redact_secrets(text)
                                 all_docs[f"uploaded:{filename}"] = secure_text
                                 

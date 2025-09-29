@@ -1,4 +1,4 @@
-from app.security_utils import sanitize_text, redact_secrets, warn_dangerous, injection_score, penalize_suspicious
+from app.security.security_utils import sanitize_text, redact_secrets, warn_dangerous, injection_score, penalize_suspicious
 
 def test_redaction():
     sample = "Here is a key: sk-ABCDEF12345678901234567890"

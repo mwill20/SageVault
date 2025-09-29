@@ -1,4 +1,4 @@
-from app.security_gate import secure_plan, secure_text
+from app.security.security_gate import secure_plan, secure_text
 
 def test_secure_text_redacts_and_flags():
     secret = "OPENAI_API_KEY=sk-abc123"
