@@ -6,7 +6,7 @@ import os
 sys.path.append('.')
 sys.path.append('app')
 
-from app.security_utils import (
+from app.security.security_utils import (
     injection_score, redact_secrets, penalize_suspicious, 
     sanitize_text, warn_dangerous, diversity_guard
 )

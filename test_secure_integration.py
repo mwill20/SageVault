@@ -9,7 +9,7 @@ sys.path.append('app')
 from simple_rag import search_vector_store, create_or_update_unified_vector_store, add_to_vector_store
 from app.secure_rag import SecureRAGMixin
 from app.secure_prompts import SECURE_SYSTEM_PROMPT
-from app.security_utils import penalize_suspicious, redact_secrets, injection_score
+from app.security.security_utils import penalize_suspicious, redact_secrets, injection_score
 
 class TestSecureRAG(SecureRAGMixin):
     """Test implementation that combines existing RAG with security features."""

@@ -3,8 +3,8 @@
 
 import re
 from typing import List, Dict, Any, Optional, Tuple
-from app.security_gate import secure_text, secure_plan
-from app.security_utils import (
+from .security_gate import secure_text, secure_plan
+from .security_utils import (
     penalize_suspicious, 
     diversity_guard, 
     redact_secrets,

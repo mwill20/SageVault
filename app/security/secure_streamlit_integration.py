@@ -4,14 +4,14 @@
 import streamlit as st
 import re
 from typing import Dict, List, Any, Optional
-from app.security.security_utils import (
+from .security_utils import (
     redact_secrets, 
     injection_score, 
     penalize_suspicious,
     warn_dangerous,
     sanitize_text
 )
-from app.security.secure_prompts import SECURE_SYSTEM_PROMPT
+from .secure_prompts import SECURE_SYSTEM_PROMPT
 
 class SecurityMiddleware:
     """Lightweight security middleware that wraps existing RAG calls."""
