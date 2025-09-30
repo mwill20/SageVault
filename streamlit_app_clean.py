@@ -1,4 +1,4 @@
-"""SageVault - A Conversational UI for RAG"""
+﻿"""SageVault - A Conversational UI for RAG"""
 import streamlit as st
 import requests
 from urllib.parse import urlparse
@@ -9,7 +9,12 @@ import io
 import pandas as pd
 
 # Import utilities
-from simple_rag import create_or_update_unified_vector_store, add_to_vector_store, search_vector_store
+from simple_rag import (
+    create_or_update_unified_vector_store,
+    add_to_vector_store,
+    search_vector_store,
+    search_vector_store_langchain,
+)
 from analytics import track_index_built, track_question_asked, track_files_processed, track_security_override, track_document_upload, get_session_summary, clear_analytics
 from utilities.repo_analyzer import repo_analyzer
 
@@ -210,6 +215,7 @@ if 'indexed_files' not in st.session_state:
     st.session_state.indexed_files = []
 if 'repo_url' not in st.session_state:
     st.session_state.repo_url = ""
+USE_LANGCHAIN_RETRIEVER = os.getenv("SAGEVAULT_USE_LANGCHAIN", "").lower() in ("1", "true", "yes")
 if 'source_choice' not in st.session_state:
     st.session_state.source_choice = "GitHub Repository"
 
@@ -234,6 +240,12 @@ with st.sidebar:
     st.success("✅ Secret Redaction: Active") 
     st.success("✅ Command Safety: Active")
     st.info("🛡️ System automatically protected")
+    st.markdown("---")
+    st.subheader("?? Retriever Mode")
+    if USE_LANGCHAIN_RETRIEVER:
+        st.info("LangChain + Chroma retriever enabled via SAGEVAULT_USE_LANGCHAIN")
+    else:
+        st.info("Native Chroma retriever (default)")
 
 # --- Main App Layout ---
 # Logo positioned on the left where title was with blue highlight
@@ -427,10 +439,22 @@ with right_column:
             with st.chat_message("assistant"):
                 with st.spinner("Thinking..."):
                     # 1. Search for relevant sources (with automatic security protection)
+                    def _perform_search(query: str, collection_obj, k: int = 5):
+                        if USE_LANGCHAIN_RETRIEVER:
+                            try:
+                                return search_vector_store_langchain(collection_obj, query, k=k)
+                            except RuntimeError as exc:
+                                st.warning(
+                                    f"LangChain retriever unavailable: {exc}. Falling back to native retriever."
+                                )
+                        return search_vector_store(collection_obj, query, k=k)
+
                     search_result = secure_rag_search(
-                        lambda q, collection, k: search_vector_store(collection, q, k=k),
-                        prompt, st.session_state.unified_collection, k=5
-                    )
+                        lambda q, collection, k: _perform_search(q, collection, k),
+                        prompt,
+                        st.session_state.unified_collection,
+                        k=5,
+                        )
                     
                     # Handle security automatically
                     if "error" in search_result:

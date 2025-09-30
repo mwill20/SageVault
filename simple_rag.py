@@ -11,6 +11,8 @@ os.environ["CHROMADB_DISABLE_TELEMETRY"] = "true"
 _chroma_client = None
 _embeddings_model = None
 
+EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
 def get_chroma_client():
     """Get or create ChromaDB client"""
     global _chroma_client
@@ -25,7 +27,7 @@ def get_embeddings_model():
     global _embeddings_model
     if _embeddings_model is None:
         from sentence_transformers import SentenceTransformer
-        _embeddings_model = SentenceTransformer("all-MiniLM-L6-v2")
+        _embeddings_model = SentenceTransformer(EMBEDDING_MODEL_NAME)
     return _embeddings_model
 
 def is_safe_file_type(filename: str) -> bool:
@@ -248,6 +250,47 @@ def calculate_semantic_boost(text: str, file_path: str, query: str) -> float:
             boost *= 1.3
     
     return boost
+
+def search_vector_store_langchain(collection: object, query: str, k: int = 5) -> List[Dict]:
+    """Optional LangChain-based retrieval backed by the existing Chroma collection."""
+    try:
+        from langchain_community.embeddings import SentenceTransformerEmbeddings
+        from langchain_community.vectorstores import Chroma as LCChroma
+    except ImportError as exc:
+        raise RuntimeError(
+            "LangChain optional dependencies are not installed. "
+            "Install `langchain` and `langchain-community` to enable this mode."
+        ) from exc
+
+    if not hasattr(collection, "name"):
+        raise ValueError("Expected a Chroma collection with a 'name' attribute")
+
+    client = get_chroma_client()
+    embedder = SentenceTransformerEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+    store = LCChroma(
+        client=client,
+        collection_name=collection.name,
+        embedding_function=embedder,
+    )
+
+    docs_scores = store.similarity_search_with_relevance_scores(query, k=k)
+    results: List[Dict] = []
+    for doc, score in docs_scores:
+        metadata = doc.metadata or {}
+        file_path = metadata.get("file_path") or metadata.get("source") or "Unknown"
+        source_type = metadata.get("actual_source") or metadata.get("source_type", "unknown")
+        results.append(
+            {
+                "text": doc.page_content,
+                "file_path": file_path,
+                "path": file_path,
+                "similarity": float(round(score, 3)),
+                "source_type": source_type,
+            }
+        )
+
+    return results
+
 
 def search_vector_store(collection: object, query: str, k: int = 5, repo_info: Dict = None, top_level_dirs: List[str] = None) -> List[Dict]:
     """Search the vector store with enhanced query rewriting, README prioritization, and semantic boosting"""

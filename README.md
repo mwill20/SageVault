@@ -192,6 +192,12 @@ The app will open in your browser at `http://localhost:8501`
 - **Session Clarity**: Clear the index when switching modes so each run analyzes a single source type
 - **Source Attribution**: Answers clearly indicate whether context came from repo or uploaded documents
 
+### **🔄 Optional LangChain Retriever**
+
+- **Enable via Env Var**: Set `SAGEVAULT_USE_LANGCHAIN=true` to route retrieval through LangChain’s Chroma wrapper
+- **Dependencies**: Requires the `langchain` and `langchain-community` packages (included in `requirements.txt`)
+- **Fallback Safe**: If LangChain isn’t available at runtime, SageVault automatically falls back to the native retriever
+
 ### **📊 Analytics & Monitoring**
 
 #### **Performance Dashboard**
