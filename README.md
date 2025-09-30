@@ -121,7 +121,9 @@ For reviewers, baseline evidence is stored under `evidence/` and `artifacts/` (s
 - Blocklist/allowlist for file types; guardrails for risky content.
 - “Accept risk” override is available (off by default).
 
-See **security.md** for details and scope.\n\n- Integration guide: [docs/security_integration.md](docs/security_integration.md)
+See **security.md** for details and scope.
+
+- Integration guide: [docs/security_integration.md](docs/security_integration.md)
 
 ---
 
@@ -130,7 +132,7 @@ See **security.md** for details and scope.\n\n- Integration guide: [docs/securit
 - **QA / Evaluation:** `docs/QA.md` (precision@K snapshot and method)  
 - **Publication text:** `docs/publication.md` (paste‑ready for Ready Tensor)  
 - **Examples & fixtures:** `examples/` (mini FastAPI repo, API excerpt)  
-- **Evidence:** `evidence/` (baseline, pytest) and `artifacts/sample_session.md`  
+- **Evidence Bundle:** `evidence/baseline.txt`, `evidence/pytest.log`, `artifacts/test_audit_report.md`, `docs/QA.md`, `assets/analytics_sidebar.png`, `artifacts/sample_session.md`  
 - **Contributing:** `CONTRIBUTING.md` • **Code of Conduct:** `CODE_OF_CONDUCT.md` • **Changelog:** `CHANGELOG.md`
 
 ---
