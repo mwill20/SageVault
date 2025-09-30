@@ -264,6 +264,7 @@ flowchart LR
 - **Document Fixture**: `examples/docs/understanding_apis_excerpt.txt` mimics an uploaded knowledge base
 - **One-Command Demo**: `python examples/run_sample.py` indexes both fixtures (separately) and prints deterministic hits
 - These resources underpin the precision@K checks in the publication submission and help reviewers reproduce results locally
+- **Sample Session**: See `artifacts/sample_session.md` for export format produced from the demo
 
 ### **📊 Analytics & Monitoring**
 
