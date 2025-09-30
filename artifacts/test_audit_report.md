@@ -11,7 +11,7 @@
 | general |  |  | pass | Test the repository type detection | tests/test_advanced_features.py::test_repository_analyzer | 0.01 |
 | general |  |  | pass | Test quickstart guide generation | tests/test_advanced_features.py::test_quickstart_generation | 0.00 |
 | general |  |  | pass | Test integrated workflow of both features | tests/test_advanced_features.py::test_integration_workflow | 0.00 |
-| general |  |  | pass | Test all 4 LLM providers with the same interface | tests/test_all_llm_integrations.py::test_all_llm_providers | 6.42 |
+| general |  |  | pass | Test all 4 LLM providers with the same interface | tests/test_all_llm_integrations.py::test_all_llm_providers | 5.55 |
 | general |  |  | pass | Test that all providers follow the same interface | tests/test_all_llm_integrations.py::test_provider_consistency | 0.00 |
 | general |  |  | pass | Test that all required packages are in requirements | tests/test_all_llm_integrations.py::test_requirements_completeness | 0.00 |
 | general |  |  | pass | Test that all LLM packages can be imported | tests/test_all_llm_integrations.py::test_import_health | 0.00 |
@@ -22,18 +22,19 @@
 | general |  |  | pass | Test README structure and content | tests/test_analytics_docs.py::test_readme_structure | 0.00 |
 | general |  |  | pass | Test demo GIF placeholder and instructions | tests/test_analytics_docs.py::test_demo_gif_placeholder | 0.00 |
 | general |  |  | pass | Test the performance monitoring system | tests/test_backlog_features.py::test_performance_monitoring | 0.10 |
-| general |  |  | pass | Test the session export functionality | tests/test_backlog_features.py::test_session_export | 0.07 |
+| general |  |  | pass | Test the session export functionality | tests/test_backlog_features.py::test_session_export | 0.05 |
 | general |  |  | pass | Test integrated workflow of performance monitoring + session export | tests/test_backlog_features.py::test_integration_workflow | 0.05 |
 | general |  |  | pass | Test that anthropic package imports correctly | tests/test_claude_integration.py::test_claude_import | 0.00 |
-| general |  |  | pass | Test Claude integration in call_llm function | tests/test_claude_integration.py::test_claude_integration | 0.57 |
+| general |  |  | pass | Test Claude integration in call_llm function | tests/test_claude_integration.py::test_claude_integration | 0.54 |
 | general |  |  | pass | Test that Anthropic is available in provider selection | tests/test_claude_integration.py::test_provider_selection | 0.00 |
 | general |  |  | pass | Test that requirements_clean.txt includes anthropic | tests/test_claude_integration.py::test_requirements_updated | 0.00 |
 | general |  |  | pass | Test text file processing | tests/test_document_upload.py::test_text_file_processing | 0.00 |
 | general |  |  | pass | Test unsupported file type | tests/test_document_upload.py::test_unsupported_file | 0.00 |
+| general |  |  | pass | Test source tagging with different repository names | tests/test_dynamic_sources.py::test_dynamic_source_tagging | 0.39 |
 | general |  |  | pass | Test configurable chunk size and overlap | tests/test_enhancements.py::test_chunk_size_and_overlap | 0.00 |
-| general |  |  | pass | Test README prioritization in search results | tests/test_enhancements.py::test_readme_prioritization | 0.30 |
+| general |  |  | pass | Test README prioritization in search results | tests/test_enhancements.py::test_readme_prioritization | 0.27 |
 | security |  |  | pass | Test file type security filtering | tests/test_enhancements.py::test_file_type_security | 0.00 |
-| general |  |  | pass | Test combining repository and document sources | tests/test_enhancements.py::test_multi_source_indexing | 0.13 |
+| general |  |  | pass | Test combining repository and document sources | tests/test_enhancements.py::test_multi_source_indexing | 0.14 |
 | general |  |  | pass | Test that google-generativeai package imports correctly | tests/test_gemini_integration.py::test_gemini_import | 0.00 |
 | general |  |  | pass | Test Gemini integration in call_llm function | tests/test_gemini_integration.py::test_gemini_integration | 0.09 |
 | general |  |  | pass | Test that Google is available in provider selection | tests/test_gemini_integration.py::test_provider_selection | 0.00 |
@@ -44,14 +45,14 @@
 | general |  |  | pass |  | tests/test_planner.py::test_plan_includes_verify_step | 0.00 |
 | general |  |  | pass |  | tests/test_planner.py::test_colab_step_when_few_deps | 0.00 |
 | general |  |  | pass |  | tests/test_planner.py::test_risk_tagging | 0.00 |
-| general |  |  | pass | Test enhanced GitHub error handling | tests/test_polish_enhancements.py::test_enhanced_error_messages | 1.16 |
+| general |  |  | pass | Test enhanced GitHub error handling | tests/test_polish_enhancements.py::test_enhanced_error_messages | 1.06 |
 | general |  |  | pass | Test that excluded files are properly tracked | tests/test_polish_enhancements.py::test_excluded_files_tracking | 0.00 |
 | general |  |  | pass | Test that all required imports work | tests/test_polish_enhancements.py::test_imports | 0.00 |
 | general |  |  | pass | Test automatic query enhancement with repository context | tests/test_quality_improvements.py::test_query_enhancement | 0.00 |
-| general |  |  | pass | Test MMR (Maximal Marginal Relevance) re-ranking | tests/test_quality_improvements.py::test_mmr_functionality | 0.14 |
-| general |  |  | pass | Test integration of query enhancement and MMR in search_vector_store | tests/test_quality_improvements.py::test_enhanced_search_integration | 0.36 |
-| general |  |  | pass | Test that MMR actually improves result diversity | tests/test_quality_improvements.py::test_diversity_improvement | 0.61 |
-| general |  |  | pass | Test that enhancements don't break existing functionality | tests/test_quality_improvements.py::test_backward_compatibility | 0.20 |
+| general |  |  | pass | Test MMR (Maximal Marginal Relevance) re-ranking | tests/test_quality_improvements.py::test_mmr_functionality | 0.16 |
+| general |  |  | pass | Test integration of query enhancement and MMR in search_vector_store | tests/test_quality_improvements.py::test_enhanced_search_integration | 0.38 |
+| general |  |  | pass | Test that MMR actually improves result diversity | tests/test_quality_improvements.py::test_diversity_improvement | 0.45 |
+| general |  |  | pass | Test that enhancements don't break existing functionality | tests/test_quality_improvements.py::test_backward_compatibility | 0.21 |
 | security |  |  | pass |  | tests/test_security.py::test_redaction | 0.00 |
 | security |  |  | pass |  | tests/test_security.py::test_sanitize | 0.00 |
 | security |  |  | pass |  | tests/test_security.py::test_warn | 0.00 |
@@ -63,3 +64,4 @@
 | security |  |  | pass | Test the security override system | tests/test_security_override.py::test_security_override | 0.00 |
 | general |  |  | pass |  | tests/test_ui_smoke.py::test_streamlit_app_imports | 0.01 |
 | general |  |  | pass |  | tests/test_ui_smoke.py::test_extract_repo_signals_fields | 0.00 |
+| general |  |  | pass | Test GitHub URL parsing with various formats | tests/test_url_parsing.py::test_github_url_parsing | 0.00 |

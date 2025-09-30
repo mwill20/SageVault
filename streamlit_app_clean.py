@@ -216,6 +216,8 @@ if 'indexed_files' not in st.session_state:
 if 'repo_url' not in st.session_state:
     st.session_state.repo_url = ""
 USE_LANGCHAIN_RETRIEVER = os.getenv("SAGEVAULT_USE_LANGCHAIN", "").lower() in ("1", "true", "yes")
+if 'use_langchain' not in st.session_state:
+    st.session_state.use_langchain = USE_LANGCHAIN_RETRIEVER
 if 'source_choice' not in st.session_state:
     st.session_state.source_choice = "GitHub Repository"
 
@@ -241,9 +243,14 @@ with st.sidebar:
     st.success("✅ Command Safety: Active")
     st.info("🛡️ System automatically protected")
     st.markdown("---")
-    st.subheader("?? Retriever Mode")
-    if USE_LANGCHAIN_RETRIEVER:
-        st.info("LangChain + Chroma retriever enabled via SAGEVAULT_USE_LANGCHAIN")
+    st.subheader("Retriever Mode")
+    use_langchain = st.checkbox(
+        "Use LangChain Retriever",
+        value=USE_LANGCHAIN_RETRIEVER,
+        help="Toggle between native and LangChain retriever."
+    )
+    if use_langchain:
+        st.info("LangChain + Chroma retriever enabled.")
     else:
         st.info("Native Chroma retriever (default)")
 
@@ -440,7 +447,7 @@ with right_column:
                 with st.spinner("Thinking..."):
                     # 1. Search for relevant sources (with automatic security protection)
                     def _perform_search(query: str, collection_obj, k: int = 5):
-                        if USE_LANGCHAIN_RETRIEVER:
+                        if use_langchain:
                             try:
                                 return search_vector_store_langchain(collection_obj, query, k=k)
                             except RuntimeError as exc:

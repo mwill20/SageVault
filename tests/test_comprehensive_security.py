@@ -1,11 +1,15 @@
-# test_comprehensive_security.py
+﻿# test_comprehensive_security.py
 """Comprehensive security test suite for SageVault RAG system."""
 
 import sys
-import os
-sys.path.append('.')
-sys.path.append('app')
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+APP_DIR = ROOT_DIR / 'app'
+if str(APP_DIR) not in sys.path:
+    sys.path.append(str(APP_DIR))
 from app.security.security_utils import (
     injection_score, redact_secrets, penalize_suspicious, 
     sanitize_text, warn_dangerous, diversity_guard

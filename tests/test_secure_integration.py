@@ -1,11 +1,15 @@
-# secure_integration_test.py
+﻿# secure_integration_test.py
 """Test script to demonstrate secure integration without breaking existing functionality."""
 
 import sys
-import os
-sys.path.append('.')
-sys.path.append('app')
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+APP_DIR = ROOT_DIR / 'app'
+if str(APP_DIR) not in sys.path:
+    sys.path.append(str(APP_DIR))
 from simple_rag import search_vector_store, create_or_update_unified_vector_store, add_to_vector_store
 from app.secure_rag import SecureRAGMixin
 from app.secure_prompts import SECURE_SYSTEM_PROMPT

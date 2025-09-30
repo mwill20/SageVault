@@ -81,7 +81,7 @@ def test_file_type_security():
 
 def test_multi_source_indexing():
     """Test combining repository and document sources"""
-    print("\n🧪 Testing multi-source indexing...")
+    print("\n🧪 Testing index one source type per session (repo or documents) workflows...")
     
     # Create separate document sets
     repo_docs = {

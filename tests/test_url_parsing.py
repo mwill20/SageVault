@@ -1,11 +1,14 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Test GitHub URL parsing functionality
 """
 
 import sys
-sys.path.append('.')
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
 # Import the GitHub URL parsing function from streamlit app
 def parse_github_url(url):
     """Extract repository name from GitHub URL"""

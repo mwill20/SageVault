@@ -1,13 +1,17 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Test script to verify dynamic source tagging with different repositories
 """
 
 import sys
-import os
-sys.path.append('.')
-sys.path.append('app')
+from pathlib import Path
 
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.append(str(ROOT_DIR))
+APP_DIR = ROOT_DIR / 'app'
+if str(APP_DIR) not in sys.path:
+    sys.path.append(str(APP_DIR))
 from simple_rag import add_to_vector_store, create_or_update_unified_vector_store
 
 def test_dynamic_source_tagging():
