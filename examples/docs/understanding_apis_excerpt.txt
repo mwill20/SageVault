@@ -1,0 +1,11 @@
+﻿Understanding APIs – SageVault Sample Excerpt
+===========================================
+
+Application Programming Interfaces (APIs) provide a contract between clients and servers.
+This excerpt outlines three core concepts:
+
+1. **Endpoints** – canonical URLs through which the server exposes functionality.
+2. **Status Codes** – three-digit responses such as 200 (success) or 404 (not found).
+3. **Payloads** – JSON documents that describe the requested resource or error message.
+
+Use this document with SageVault's document mode to validate upload and retrieval behaviour.

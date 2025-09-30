@@ -198,6 +198,13 @@ The app will open in your browser at `http://localhost:8501`
 - **Dependencies**: Requires the `langchain` and `langchain-community` packages (included in `requirements.txt`)
 - **Fallback Safe**: If LangChain isn’t available at runtime, SageVault automatically falls back to the native retriever
 
+### **📁 Sample Data & Scripts**
+
+- **Repository Fixture**: `examples/sample_repo/` is a tiny FastAPI project for dry runs
+- **Document Fixture**: `examples/docs/understanding_apis_excerpt.txt` mimics an uploaded knowledge base
+- **One-Command Demo**: `python examples/run_sample.py` indexes both fixtures (separately) and prints deterministic hits
+- These resources underpin the precision@K checks in the publication submission and help reviewers reproduce results locally
+
 ### **📊 Analytics & Monitoring**
 
 #### **Performance Dashboard**
