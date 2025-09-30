@@ -2,7 +2,7 @@
 import streamlit as st
 import requests
 from urllib.parse import urlparse
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 import os
 import sys
 import io
@@ -210,11 +210,13 @@ if 'indexed_files' not in st.session_state:
     st.session_state.indexed_files = []
 if 'repo_url' not in st.session_state:
     st.session_state.repo_url = ""
+if 'source_choice' not in st.session_state:
+    st.session_state.source_choice = "GitHub Repository"
 
 # --- Sidebar for Settings ---
 with st.sidebar:
     st.markdown("# 📖 **<span style='color: #1f77b4;'>How to use:</span>**", unsafe_allow_html=True)
-    st.markdown("**<span style='color: #1f77b4;'>1.</span> Add a GitHub repo and/or upload documents.**\n\n**<span style='color: #1f77b4;'>2.</span> Click 'Index All'.**\n\n**<span style='color: #1f77b4;'>3.</span> Ask questions in the chat window.**", unsafe_allow_html=True)
+    st.markdown("**<span style='color: #1f77b4;'>1.</span> Choose either a GitHub repo <em>or</em> upload documents.**\n\n**<span style='color: #1f77b4;'>2.</span> Click 'Index All'.**\n\n**<span style='color: #1f77b4;'>3.</span> Ask questions in the chat window.**", unsafe_allow_html=True)
     st.markdown("---")
     st.header("⚙️ Settings")
     provider = st.selectbox("LLM Provider", ["None", "Groq", "OpenAI", "Anthropic", "Google"])
@@ -263,8 +265,35 @@ left_column, right_column = st.columns([1, 1.5])
 # --- Left Column: Data Sources & Controls ---
 with left_column:
     st.subheader("Add Data Sources")
-    repo_url_input = st.text_input("Add GitHub Repo URL", placeholder="https://github.com/owner/repository", value=st.session_state.repo_url)
-    uploaded_files = st.file_uploader("Download Docs", accept_multiple_files=True, type=['pdf', 'docx', 'txt', 'md', 'py', 'js', 'html', 'css', 'json', 'yml', 'yaml'])
+    source_choice = st.radio(
+        "Choose a source type",
+        ["GitHub Repository", "Uploaded Documents"],
+        key="source_choice",
+        horizontal=True,
+        help="For accuracy, index either repository content or uploaded documents in a single session."
+    )
+
+    repo_url_input: str = ""
+    uploaded_files = []
+
+    if source_choice == "GitHub Repository":
+        repo_url_input = st.text_input(
+            "Add GitHub Repo URL",
+            placeholder="https://github.com/owner/repository",
+            value=st.session_state.repo_url
+        ).strip()
+        uploaded_files = []
+        st.info("Repo mode active. Uploaded documents are disabled until you switch to 'Uploaded Documents'.")
+    else:
+        if st.session_state.repo_url:
+            st.session_state.repo_url = ""
+        repo_url_input = ""
+        uploaded_files = st.file_uploader(
+            "Upload Documents",
+            accept_multiple_files=True,
+            type=['pdf', 'docx', 'txt', 'md', 'py', 'js', 'html', 'css', 'json', 'yml', 'yaml']
+        )
+        st.info("Document mode active. Repository URL input is disabled until you switch back to 'GitHub Repository'.")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -413,24 +442,77 @@ with right_column:
                         for warning in search_result.get("warnings", []):
                             st.warning(f"🔒 Security Notice: {warning}")
                         
-                        st.session_state.sources = search_results # Update sources for display
+                        # Sources will be stored after we reorder them for display
                         
                         # 2. Construct secure prompt for LLM (automatic security)
                         # Handle different possible key formats from search results
-                        context_parts = []
-                        for r in search_results:
-                            # Check which key exists for the file path
-                            file_path = r.get('file_path') or r.get('path') or r.get('source') or 'Unknown'
-                            text = r.get('text', '')
-                            context_parts.append(f"Source: {file_path}\n\n{text}")
-                        context = "\n\n".join(context_parts)
+                        query_lower = prompt.lower()
+                        additional_guidance = ""
+                        if any(keyword in query_lower for keyword in [
+                            "repo", "repository", "download", "source", "sources", "two sources", "both source", "both sources"
+                        ]):
+                            additional_guidance = (
+                                "Provide a short summary for each distinct source. "
+                                "Label sections as Repo or Download using the source names. "
+                                "Base each summary on the snippet provided; quote or paraphrase the actual text. "
+                                "State 'No context available' only if no snippet exists for that source."
+                            )
+                        guidance_block = (
+                            f"Additional instructions:\n{additional_guidance}\n\n" if additional_guidance else ""
+                        )
+
+                        sorted_results = sorted(
+                            search_results,
+                            key=lambda item: item.get('similarity', 0.0),
+                            reverse=True
+                        )
+                        st.session_state.sources = sorted_results
+
+                        repo_chunks: List[Dict[str, Any]] = []
+                        download_chunks: List[Dict[str, Any]] = []
+                        for result in sorted_results:
+                            file_path = result.get('file_path') or result.get('path') or result.get('source') or 'Unknown'
+                            text = (result.get('text') or '').strip()
+                            if not text:
+                                continue
+                            similarity = float(result.get('similarity', 0.0))
+                            if file_path.startswith('uploaded:'):
+                                download_chunks.append({
+                                    'label': file_path.replace('uploaded:', ''),
+                                    'text': text,
+                                    'similarity': similarity
+                                })
+                            else:
+                                repo_chunks.append({
+                                    'label': file_path,
+                                    'text': text,
+                                    'similarity': similarity,
+                                    'is_readme': 'readme' in file_path.lower()
+                                })
+
+                        repo_chunks.sort(key=lambda item: (not item.get('is_readme', False), -item['similarity']))
+                        download_chunks.sort(key=lambda item: -item['similarity'])
+
+                        def _section_header(title: str, entries: List[Dict[str, Any]]) -> str:
+                            snippets = []
+                            for entry in entries[:3]:
+                                excerpt = entry['text'][:1200]
+                                snippets.append(f"[{title}: {entry['label']}]\n{excerpt}")
+                            return "\n\n".join(snippets)
+
+                        context_sections: List[str] = []
+                        if repo_chunks:
+                            context_sections.append(_section_header('Repo', repo_chunks))
+                        if download_chunks:
+                            context_sections.append(_section_header('Download', download_chunks))
+                        context = "\n\n".join(context_sections)
                         llm_prompt = f"""{SECURE_SYSTEM_PROMPT}
-                        
-                        Context:
+
+                        {guidance_block}Context:
                         {context}
-                        
+
                         Question: {prompt}
-                        
+
                         Answer:"""
 
                         # 3. Call LLM and automatically secure response
@@ -467,20 +549,21 @@ if st.session_state.sources:
         file_path = source.get('file_path') or source.get('path') or source.get('source') or 'Unknown'
         similarity = source.get('similarity', 0.0)
         source_type = source.get('source_type', 'unknown')
-        provenance_chip = f"Provenance: Download" if file_path.startswith('uploaded:') else f"Provenance: Repo"
         # Display name and icon
         if file_path.startswith('uploaded:'):
             clean_filename = file_path.replace('uploaded:', '')
-            display_name = f"📄 Download: {clean_filename}"
+            display_name = f"Download: {clean_filename}"
+            provenance_chip = f"Provenance: Download ({clean_filename})"
         else:
-            repo_name = "Repository"
+            repo_name = 'Repository'
             if st.session_state.repo_url:
                 try:
                     owner, repo = parse_github_url(st.session_state.repo_url)
                     repo_name = repo
-                except:
-                    repo_name = "Repository"
-            display_name = f"🔍 Repo: {repo_name}/{file_path}"
+                except Exception:
+                    repo_name = 'Repository'
+            display_name = f"Repo: {repo_name}/{file_path}"
+            provenance_chip = f"Provenance: Repo ({repo_name})"
         url = source.get('github_url')
         if not url and st.session_state.repo_url and not file_path.startswith('uploaded:'):
             url = f"https://github.com/{'/'.join(parse_github_url(st.session_state.repo_url))}/blob/main/{file_path}"

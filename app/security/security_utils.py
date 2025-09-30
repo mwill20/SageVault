@@ -168,20 +168,57 @@ def penalize_suspicious(
     if isinstance(payload, list):
         if not payload:
             return []
-        coerced = [_coerce_hit(d, text_key=text_key) for d in payload]
-        scored: List[Dict[str, Any]] = []
-        for h in coerced:
-            s = injection_score(h["text"])
-            penalty = 1.0 / (1.0 + s)  # s=0 → 1.0; s>=1 → <1.0
-            h2 = dict(h)
-            h2["similarity"] = float(h2["similarity"]) * penalty
-            h2["_inj_score"] = s  # for sorting only
-            scored.append(h2)
-        scored.sort(key=lambda x: x["_inj_score"])  # safer first
-        for h in scored:
-            h.pop("_inj_score", None)
-        return scored
+        secured: List[Dict[str, Any]] = []
+        for item in payload:
+            if isinstance(item, dict):
+                new_item = dict(item)
+                text = str(item.get(text_key, ""))
+                path_val = (
+                    item.get("file_path")
+                    or item.get("path")
+                    or item.get("source")
+                    or item.get("id")
+                    or ""
+                )
+                path_val = str(path_val or "")
+                if path_val:
+                    new_item.setdefault("path", path_val)
+                    new_item.setdefault("file_path", path_val)
+                try:
+                    similarity = float(new_item.get("similarity", 1.0))
+                except Exception:
+                    similarity = 1.0
+            else:
+                text = _extract_text(item, text_key)
+                path_val = getattr(
+                    item,
+                    "file_path",
+                    getattr(item, "path", getattr(item, "source", "")),
+                )
+                path_val = str(path_val or "")
+                try:
+                    similarity = float(getattr(item, "similarity", 1.0))
+                except Exception:
+                    similarity = 1.0
+                new_item = {
+                    "text": text,
+                    "path": path_val,
+                    "file_path": path_val,
+                    "similarity": similarity,
+                }
 
+            inj_score = injection_score(text)
+            penalty = 1.0 / (1.0 + inj_score)
+            new_item.setdefault("original_similarity", similarity)
+            new_item["similarity"] = float(round(similarity * penalty, 6))
+            new_item["security_penalty"] = round(1 - penalty, 6)
+            new_item["_inj_score"] = inj_score
+            secured.append(new_item)
+
+        secured.sort(key=lambda x: x["_inj_score"])  # safer first
+        for item in secured:
+            item.pop("_inj_score", None)
+        return secured
     # Dict path (Coach Mode step)
     if isinstance(payload, dict):
         out = dict(payload)

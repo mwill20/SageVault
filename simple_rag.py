@@ -333,13 +333,14 @@ def search_vector_store(collection: object, query: str, k: int = 5, repo_info: D
     
     # For other queries, use the original logic but with better balance
     elif any(phrase in query_lower for phrase in ['what is', 'about', 'tell me about', 'describe']):
-        # For descriptive queries, prioritize repo content but ensure downloads are included
+        # For descriptive queries, surface README/overview content first
         if repo_results:
-            final_results.append(repo_results[0])  # Best repo result first
+            repo_results.sort(key=lambda item: (not item['file_path'].lower().startswith('readme'), -item['similarity']))
+            final_results.append(repo_results[0])
         if download_results:
-            final_results.append(download_results[0])  # Best download result
-        
-        # Fill remaining with mixed results
+            final_results.append(download_results[0])
+
+        # Fill remaining slots with highest-similarity items across sources
         remaining_slots = k - len(final_results)
         if remaining_slots > 0:
             all_remaining = [r for r in (repo_results[1:] + download_results[1:] + other_results) if r not in final_results]

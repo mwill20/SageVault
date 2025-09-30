@@ -32,3 +32,17 @@ def test_injection_scoring_and_penalty(audit):
     scored = penalize_suspicious([suspect, normal], max_share=0.8)
     audit(kind="prompt injection", query=q, result="penalized")
     assert scored[0]["similarity"] < 1.0 or scored[1]["similarity"] < 1.0
+
+
+
+def test_penalize_preserves_file_path():
+    hits = [{
+        "text": "sample text",
+        "file_path": "uploaded:guide.pdf",
+        "similarity": 0.9,
+        "source_type": "Download",
+    }]
+    scored = penalize_suspicious(hits, text_key="text")
+    assert scored and scored[0]["file_path"] == "uploaded:guide.pdf"
+    assert scored[0]["path"] == "uploaded:guide.pdf"
+    assert scored[0].get("source_type") == "Download"

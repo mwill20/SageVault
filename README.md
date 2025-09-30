@@ -15,12 +15,12 @@
 
 ## 🚀 What is SageVault?
 
-SageVault is a **production-ready**, **enterprise-grade** Retrieval-Augmented Generation (RAG) platform that transforms how you explore GitHub repositories and analyze documents with AI-powered intelligence, multi-source indexing, and comprehensive security controls.
+SageVault is a **production-ready**, **enterprise-grade** Retrieval-Augmented Generation (RAG) platform that transforms how you explore GitHub repositories or analyze uploaded documents with AI-powered intelligence and comprehensive security controls.
 
 ### 🎯 **Core Capabilities**
 - **📂 Repository Analysis**: Index and query any public GitHub repository with intelligent project detection
 - **📄 Document Processing**: Upload and analyze PDF, DOCX, and text files with advanced extraction
-- **🔍 Multi-Source Intelligence**: Query across repositories and uploaded documents simultaneously
+- **🔍 Flexible Source Modes**: Choose dedicated sessions for repositories or uploaded documents
 - **🛡️ Enterprise Security**: Advanced security controls with professional override capabilities
 - **⚡ Performance Optimization**: Configurable processing with real-time monitoring
 
@@ -99,8 +99,8 @@ Enter your API key (session-only storage)
 
 **Step 2: 📂 Index Content**
 ```
-Repository: https://github.com/microsoft/vscode
-Or upload documents: PDF, DOCX, code files
+Repository mode: https://github.com/microsoft/vscode
+Document mode: Upload PDF, DOCX, code files (one mode per session)
 ```
 
 **Step 3: 🤖 Ask Intelligent Questions**
@@ -122,7 +122,7 @@ Example questions to try:
 |---------|----------|----------------|
 | **Multi-LLM Support** | Switch between Groq/OpenAI/Anthropic/Google | Different response styles and speeds |
 | **Smart Security** | Try indexing a repo with executables | Security warnings with professional override |
-| **Document Upload** | Upload PDF + index repo | Combined knowledge base querying |
+| **Document Upload** | Switch to Document mode and upload PDFs | Answers grounded in uploaded sources |
 | **Configurable RAG** | Adjust chunk size/overlap | See impact on answer quality |
 | **Analytics Dashboard** | Check sidebar "📊 Session Analytics" | Privacy-first usage tracking |
 | **Session Export** | Click "📝 Export Session" | Professional Markdown with metrics |
@@ -168,28 +168,29 @@ The app will open in your browser at `http://localhost:8501`
 ### **🔍 Analyzing GitHub Repositories**
 
 1. **Select LLM Provider**: Choose your preferred AI provider and enter API key
-2. **Enter Repository URL**: Paste any public GitHub repository URL
-3. **Configure RAG Settings** (Optional):
+2. **Choose "GitHub Repository" Mode**: Use the data source selector at the top of the left column
+3. **Enter Repository URL**: Paste any public GitHub repository URL
+4. **Configure RAG Settings** (Optional):
    - Adjust chunk size (200-1500 chars, default: 500)
    - Set chunk overlap (0-50%, default: 10%)
    - Add GitHub token for higher API limits
-4. **Click "🔍 Index Repository"**
-5. **Review Analysis**: View project type detection and quickstart guide
-6. **Ask Questions**: Query the repository using natural language
+5. **Click "🔍 Index All"**
+6. **Review Analysis**: View project type detection and quickstart guide
+7. **Ask Questions**: Query the repository using natural language
 
 ### **📄 Document Processing**
 
-1. **Upload Files**: Use the sidebar file uploader
-2. **Supported Formats**: PDF, DOCX, TXT, MD, code files, config files
-3. **Click "🔍 Index Documents"** 
-4. **Multi-File Analysis**: Upload multiple documents for comprehensive querying
+1. **Choose "Uploaded Documents" Mode**: Switch the data source selector from repository to documents
+2. **Upload Files**: Use the sidebar file uploader (PDF, DOCX, TXT, MD, code and config files)
+3. **Click "🔍 Index All"**
+4. **Multi-File Analysis**: Upload multiple documents for comprehensive querying within this session
 
-### **🔗 Multi-Source Intelligence**
+### **🔗 Source Modes**
 
-- **Combined Analysis**: Index both repository AND documents in same session
-- **Unified Queries**: Ask questions spanning both knowledge sources
-- **Source Attribution**: Clear identification of information sources
-- **Context Preservation**: Maintain coherence across different content types
+- **Repository Mode**: Index a GitHub repository for deep architectural insight
+- **Document Mode**: Upload one or more documents for focused Q&A
+- **Session Clarity**: Clear the index when switching modes so each run analyzes a single source type
+- **Source Attribution**: Answers clearly indicate whether context came from repo or uploaded documents
 
 ### **📊 Analytics & Monitoring**
 
