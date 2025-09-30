@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
   <img src="assets/sagevault-logo.png" alt="SageVault Logo" width="200"/>
   <h1>🔍 SageVault - Intelligent Repository Explorer</h1>
   <p><em>Enterprise-grade Multi-LLM RAG system for intelligent codebase exploration and analysis</em></p>
@@ -15,7 +15,7 @@
 
 ## 🚀 What is SageVault?
 
-SageVault is a **production-ready**, **enterprise-grade** Retrieval-Augmented Generation (RAG) platform that transforms how you explore GitHub repositories or analyze uploaded documents with AI-powered intelligence and comprehensive security controls.
+SageVault is a **production-ready**, **enterprise-grade** Retrieval-Augmented Generation (RAG) platform that transforms how you explore GitHub repositories or analyze uploaded documents with AI-powered intelligence and comprehensive security controls. It ships with a Chroma vector store (SentenceTransformer `all-MiniLM-L6-v2`) and an optional LangChain retriever toggle for reviewers who want framework parity.
 
 ### 🎯 **Core Capabilities**
 - **📂 Repository Analysis**: Index and query any public GitHub repository with intelligent project detection
@@ -23,6 +23,14 @@ SageVault is a **production-ready**, **enterprise-grade** Retrieval-Augmented Ge
 - **🔍 Flexible Source Modes**: Choose dedicated sessions for repositories or uploaded documents
 - **🛡️ Enterprise Security**: Advanced security controls with professional override capabilities
 - **⚡ Performance Optimization**: Configurable processing with real-time monitoring
+
+| Capability | Why it matters |
+|------------|----------------|
+| Repository analysis | Understand unfamiliar codebases without running them |
+| Document processing | Bring design docs or PDFs into the same retrieval workflow |
+| Source modes | Avoid mixed provenance confusion by running repo and doc sessions separately |
+| Security middleware | Prompt-injection guardrails, secret redaction, and command safety |
+| Analytics dashboard | Track latency, token usage, and provider cost in real time |
 
 ---
 
@@ -140,8 +148,8 @@ Example questions to try:
 
 ```bash
 # Clone the repository
-git clone https://github.com/mwill20/github-guidebot.git
-cd github-guidebot
+git clone https://github.com/mwill20/SageVault.git
+cd SageVault
 
 # Create and activate virtual environment
 python -m venv .venv
@@ -149,17 +157,27 @@ python -m venv .venv
 # Windows
 .venv\Scripts\activate
 
-# macOS/Linux  
+# macOS/Linux
 source .venv/bin/activate
 
 # Install dependencies
-pip install -r requirements_clean.txt
+pip install -r requirements.txt
+
+# Create an environment file
+cp .env.example .env    # Windows: copy .env.example .env
 
 # Launch the application
 streamlit run streamlit_app_clean.py
 ```
 
 The app will open in your browser at `http://localhost:8501`
+
+### Testing
+```bash
+pytest
+python examples/run_sample.py  # deterministic smoke test
+```
+
 
 ---
 
@@ -198,6 +216,47 @@ The app will open in your browser at `http://localhost:8501`
 - **Dependencies**: Requires the `langchain` and `langchain-community` packages (included in `requirements.txt`)
 - **Fallback Safe**: If LangChain isn’t available at runtime, SageVault automatically falls back to the native retriever
 
+### **🧭 Architecture Overview**
+
+```mermaid
+flowchart LR
+    subgraph UI
+        A[Streamlit UI]
+        B[Session Analytics]
+    end
+
+    subgraph Security
+        C[SecurityMiddleware]
+        D[Secret Redaction]
+        E[Prompt Injection Guard]
+    end
+
+    subgraph Retrieval
+        F[Chroma Vector Store]
+        G[LangChain Wrapper\n(optional)]
+    end
+
+    subgraph LLMs
+        H[Groq]
+        I[OpenAI]
+        J[Anthropic]
+        K[Google Gemini]
+    end
+
+    A --> C
+    C --> F
+    G --> F
+    F --> A
+    C --> D
+    C --> E
+    A --> B
+    B --> A
+    A --> H
+    A --> I
+    A --> J
+    A --> K
+```
+
 ### **📁 Sample Data & Scripts**
 
 - **Repository Fixture**: `examples/sample_repo/` is a tiny FastAPI project for dry runs
@@ -216,6 +275,25 @@ The app will open in your browser at `http://localhost:8501`
 - **Data Transparency**: See exactly what metrics are collected
 - **User Control**: Clear analytics anytime or disable collection
 - **Session Isolation**: All data cleared on application restart
+
+### **⚠️ Known Limitations & Trade-offs**
+
+- **Single source per session** – choose repository *or* document mode to keep provenance clear
+- **Binary files excluded** – large binaries and archives are skipped to maintain safe indexing
+- **No code execution** – SageVault inspects text only; runtime analysis is out of scope
+- **LLM quotas** – responses depend on your provider API limits (rate errors are surfaced in the UI)
+
+### **🛠 Support & Contact**
+
+- File issues or feature requests at [GitHub Issues](https://github.com/mwill20/SageVault/issues)
+- Security disclosures: email `mwill.itmission@gmail.com`
+
+### **📚 Project Governance**
+
+- [Contributing Guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Changelog](CHANGELOG.md)
+- [MIT License](LICENSE)
 
 ### **📝 Session Export**
 
