@@ -1,4 +1,4 @@
-﻿<div align="center">
+<div align="center">
   <img src="assets/sagevault-logo.png" alt="SageVault Logo" width="200"/>
   <h1>🔍 SageVault - Intelligent Repository Explorer</h1>
   <p><em>Enterprise-grade Multi-LLM RAG system for intelligent codebase exploration and analysis</em></p>
@@ -171,6 +171,7 @@ streamlit run streamlit_app_clean.py
 ```
 
 The app will open in your browser at `http://localhost:8501`
+On macOS or Linux you can also run `./run.sh` to automate setup.
 
 ### Testing
 ```bash
@@ -294,6 +295,7 @@ flowchart LR
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Changelog](CHANGELOG.md)
 - [MIT License](LICENSE)
+- [QA Snapshot](docs/QA.md)
 
 ### **📝 Session Export**
 
