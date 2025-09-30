@@ -121,7 +121,7 @@ For reviewers, baseline evidence is stored under `evidence/` and `artifacts/` (s
 - Blocklist/allowlist for file types; guardrails for risky content.
 - “Accept risk” override is available (off by default).
 
-See **security.md** for details and scope.
+See **security.md** for details and scope.\n\n- Integration guide: [docs/security_integration.md](docs/security_integration.md)
 
 ---
 
